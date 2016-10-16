@@ -1,0 +1,215 @@
+package feature.calculator;
+
+import java.io.Serializable;
+import java.util.Arrays;
+import java.util.Map;
+
+public class LocalIntensity implements FeatureCalculator, Serializable
+{
+	static final long serialVersionUID = 42L;
+
+	public static final int DEFAULT_SCALE = 5;
+
+	final int radius;
+	private final Min min;
+	private final Max max;
+
+	public LocalIntensity()
+	{
+		this(DEFAULT_SCALE);
+	}
+
+	public LocalIntensity(int radius)
+	{
+		this.radius = radius;
+
+		this.min = new Min(radius);
+		this.max = new Max(radius);
+	}
+
+	@Override
+	public FeatureCalculator[] getDependencies()
+	{
+		return new FeatureCalculator[] {new Min(radius), new Max(radius)};
+	}
+
+	@Override
+	public byte[][] calculate(byte[] pixels, int width, int height, Map<FeatureCalculator, byte[][]> calculated)
+	{
+		byte[] result = Arrays.copyOf(pixels, pixels.length);
+
+
+		final byte[][] minResult;
+		if(calculated!=null && calculated.containsKey(this.min))
+		{
+			minResult = calculated.get(this.min);
+		}
+		else
+		{
+			minResult = this.min.calculate(Arrays.copyOf(pixels, pixels.length), width, height, calculated);
+
+			if(calculated!=null)
+				calculated.put(min, minResult);
+		}
+
+		final byte[][] maxResult;
+		if(calculated!=null && calculated.containsKey(this.max))
+		{
+			maxResult = calculated.get(this.max);
+		}
+		else
+		{
+			maxResult = this.max.calculate(Arrays.copyOf(pixels, pixels.length), width, height, calculated);
+
+			if(calculated!=null)
+				calculated.put(max, maxResult);
+		}
+
+		byte[] min = minResult[0];
+		byte[] max = maxResult[0];
+
+
+		double currentPixel, maxPixel, minPixel, range;
+
+		for (int i = 0; i < pixels.length; i++)
+		{
+			minPixel = (0xff & min[i]);
+			maxPixel = (0xff & max[i]);
+			currentPixel = (0xff & result[i]);
+
+			range = maxPixel - minPixel;
+
+			double resultPixel = (currentPixel - minPixel) * (255 / range);
+
+			resultPixel = Math.max(0, resultPixel);
+			resultPixel = Math.min(255, resultPixel);
+
+			result[i] = (byte) resultPixel;
+		}
+
+		byte[][] resultArray = new byte[][]{result};
+
+		if(calculated!=null)
+			calculated.put(this, resultArray);
+
+		return resultArray;
+	}
+
+	@Override
+	public short[][] calculate(short[] pixels, int width, int height, Map<FeatureCalculator, short[][]> calculated)
+	{
+		short[] result = Arrays.copyOf(pixels, pixels.length);
+
+
+		final short[][] minResult;
+		if(calculated!=null && calculated.containsKey(this.min))
+		{
+			minResult = calculated.get(this.min);
+		}
+		else
+		{
+			minResult = this.min.calculate(Arrays.copyOf(pixels, pixels.length), width, height, calculated);
+
+			if(calculated!=null)
+				calculated.put(min, minResult);
+		}
+
+		final short[][] maxResult;
+		if(calculated!=null && calculated.containsKey(this.max))
+		{
+			maxResult = calculated.get(this.max);
+		}
+		else
+		{
+			maxResult = this.max.calculate(Arrays.copyOf(pixels, pixels.length), width, height, calculated);
+
+			if(calculated!=null)
+				calculated.put(max, maxResult);
+		}
+
+		short[] min = minResult[0];
+		short[] max = maxResult[0];
+
+
+		double currentPixel, maxPixel, minPixel, range;
+
+		for (int i = 0; i < pixels.length; i++)
+		{
+			minPixel = (0xffff & min[i]);
+			maxPixel = (0xffff & max[i]);
+			currentPixel = (0xffff & result[i]);
+
+			range = maxPixel - minPixel;
+
+			double resultPixel = (currentPixel - minPixel) * (65535 / range);
+
+			resultPixel = Math.max(0, resultPixel);
+			resultPixel = Math.min(65535, resultPixel);
+
+			result[i] = (short) resultPixel;
+		}
+
+		short[][] resultArray = new short[][]{result};
+
+		if(calculated!=null)
+			calculated.put(this, resultArray);
+
+		return resultArray;
+	}
+
+	@Override
+	public String[] getResultDescriptions()
+	{
+		return new String[]{getDescription()};
+	}
+
+
+	@Override
+	public int getNumImagesReturned()
+	{
+		return 1;
+	}
+
+	@Override
+	public String getName()
+	{
+		return "Locally scaled intensity (" + radius + ")";
+	}
+
+	@Override
+	public String getDescription()
+	{
+		return getName();
+	}
+
+	@Override
+	public FeatureCalculator duplicate()
+	{
+		return new LocalIntensity(radius);
+	}
+
+	@Override
+	public int getRadius()
+	{
+		return radius;
+	}
+
+	@Override
+	public boolean equals(Object o)
+	{
+		if (this == o) return true;
+		if (o == null || getClass() != o.getClass()) return false;
+
+		LocalIntensity that = (LocalIntensity) o;
+
+		if (radius != that.radius) return false;
+
+		return true;
+	}
+
+	@Override
+	public int hashCode()
+	{
+		return radius;
+	}
+}

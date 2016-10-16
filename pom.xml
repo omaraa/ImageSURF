@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+		http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<parent>
+		<groupId>net.imagej</groupId>
+		<artifactId>pom-imagej</artifactId>
+		<version>15.8.0</version>
+		<relativePath />
+	</parent>
+
+	<groupId>imagesurf</groupId>
+	<artifactId>imagesurf</artifactId>
+	<version>1.0.0</version>
+
+	<name>ImageSURF</name>
+	<description>An ImageJ plugin to segment image using random forests</description>
+
+	<repositories>
+		<repository>
+			<id>imagej.public</id>
+			<url>http://maven.imagej.net/content/groups/public</url>
+		</repository>
+	</repositories>
+
+    <inceptionYear>2016</inceptionYear>
+    <licenses>
+        <license>
+            <name>CC0 1.0 Universal License</name>
+            <url>http://creativecommons.org/publicdomain/zero/1.0/</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <id>omaraa</id>
+            <name>Aidan O'Mara</name>
+            <url>http://imagej.net/User:Omaraa</url>
+            <roles>
+                <role>founder</role>
+                <role>lead</role>
+                <role>developer</role>
+                <role>debugger</role>
+                <role>reviewer</role>
+                <role>support</role>
+                <role>maintainer</role>
+            </roles>
+        </developer>
+    </developers>
+
+	<dependencies>
+		<dependency>
+			<groupId>net.imagej</groupId>
+			<artifactId>imagej</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>net.imagej</groupId>
+			<artifactId>imagej-legacy</artifactId>
+		</dependency>
+        <dependency>
+            <groupId>nz.ac.waikato.cms.weka</groupId>
+            <artifactId>weka-stable</artifactId>
+            <version>3.8.0</version>
+        </dependency>
+        <dependency>
+            <groupId>net.mintern</groupId>
+            <artifactId>primitive</artifactId>
+            <version>1.2.3</version>
+        </dependency>
+    </dependencies>
+</project>
