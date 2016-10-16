@@ -40,6 +40,8 @@ public class TrainImageSurf implements Command{
 	public static final int DEFAULT_NUM_TREES = 100;
 	public static final int DEFAULT_NUM_ATTRIBUTES = 30;
 
+	public static final String DEFAULT_FEATURES_SUFFIX = ".features";
+
 	@Parameter
 	private LogService log;
 
@@ -84,7 +86,7 @@ public class TrainImageSurf implements Command{
 	private File featuresOutputPath;
 
 	@Parameter(label = "Training image features path suffix", type = ItemIO.INPUT, required = false)
-	private String featuresPathSuffix = ".features";
+	private String featuresPathSuffix = DEFAULT_FEATURES_SUFFIX;
 
 	@Parameter(label = "Minimum feature radius",
 			style = NumberWidget.SCROLL_BAR_STYLE, min = "0", max = "250",
