@@ -28,17 +28,23 @@ public enum PixelType {
 
 		for (int scale : scales)
 		{
-			f.add(new Mean(scale));
+//			f.add(new Mean(scale));
 			f.add(new Min(scale));
 			f.add(new Max(scale));
+			f.add(new Gaussian(scale));
 //			f.add(new Median(scale));
 			f.add(new StandardDeviation(scale));
 			f.add(new LocalIntensity(scale));
 
-			f.add(new DifferenceFrom(new Mean(scale)));
+//			f.add(new DifferenceOf(Identity.get(),new Mean(scale)));
+			f.add(new DifferenceOf(Identity.get(),new Gaussian(scale)));
 //			f.add(new DifferenceFrom(new Median(scale)));
-			f.add(new DifferenceFrom(new Min(scale), 2.0, 0));
-			f.add(new DifferenceFrom(new Max(scale), 2.0, getMax()));
+			f.add(new DifferenceOf(Identity.get(),new Min(scale), 2.0, 0));
+			f.add(new DifferenceOf(Identity.get(), new Max(scale), 2.0, getMax()));
+
+			for(int s2 : scales)
+				if(s2 < scale)
+					f.add(new DifferenceOf(new Gaussian(s2), new Gaussian(scale)));
 		}
 
 		f.add(Identity.get());

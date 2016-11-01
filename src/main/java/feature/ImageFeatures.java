@@ -13,14 +13,13 @@ import util.Utility;
 import java.io.Serializable;
 import java.nio.file.Path;
 import java.util.*;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import java.util.concurrent.*;
+import java.util.stream.Collectors;
 
 public class ImageFeatures implements Serializable
 {
 	static final long serialVersionUID = 42L;
+	private static final double SAVE_THRESHOLD = 250d / (2000 * 2000); //250ms for a 2000 * 2000 image
 
 	public final PixelType pixelType;
 
@@ -37,6 +36,9 @@ public class ImageFeatures implements Serializable
 
 	private final Object pixels;
 	private final Map<FeatureCalculator, Object>[] features;
+	private boolean verbose = true;
+
+	transient private static final Map<FeatureCalculator, Collection<Double>> computationTimes = new ConcurrentHashMap<>();
 
 	public interface ProgressListener
 	{
@@ -72,6 +74,34 @@ public class ImageFeatures implements Serializable
 				imagePlus.getNFrames(),
 				imagePlus.getTitle()
 		);
+	}
+
+	private ImageFeatures(ImageFeatures i)
+	{
+		this.width = i.width;
+		this.height = i.height;
+		this.numChannels = i.numChannels;
+		this.numSlices = i.numSlices;
+		this.numFrames = i.numFrames;
+		this.pixelsPerChannel = i.pixelsPerChannel;
+		this.pixelsPerSlice = i.pixelsPerSlice;
+		this.pixelsPerFrame = i.pixelsPerFrame;
+		this.pixels = i.pixels;
+		this.pixelType = i.pixelType;
+		this.title = i.title;
+
+		this.features = new Map[numChannels*numFrames*numSlices];
+
+		int featureIndex = 0;
+		for(int c = 0; c < numChannels; c++)
+			for(int z = 0; z < numSlices; z++)
+				for(int t = 0; t < numFrames; t++)
+				{
+					features[featureIndex] = new ConcurrentHashMap<>();
+					features[featureIndex].putAll(i.features[featureIndex]);
+
+					featureIndex++;
+				}
 	}
 
 	private ImageFeatures(final Object pixels, final PixelType pixelType, final int width, final int height, final int numChannels, final int numSlices, final int numFrames, String title)
@@ -116,7 +146,7 @@ public class ImageFeatures implements Serializable
 			for(int z = 0; z < numSlices; z++)
 				for(int t = 0; t < numFrames; t++)
 				{
-					features[i] = new HashMap<>();
+					features[i] = new ConcurrentHashMap<>();
 
 					switch (pixelType)
 					{
@@ -167,7 +197,9 @@ public class ImageFeatures implements Serializable
 
 		if(!featureCache.containsKey(feature))
 		{
+			long startTime = System.currentTimeMillis();
 			featureCache.put(feature, feature.calculate(getPixels(c, z, t), width, height, featureCache));
+			recordComputationTime(feature, System.currentTimeMillis() - startTime, pixelsPerChannel*numChannels);
 		}
 
 		return featureCache.get(feature);
@@ -376,14 +408,6 @@ public class ImageFeatures implements Serializable
 		if(featuresToCalculate.length == 0)
 			return false;
 
-		System.out.println("Already calculated: ");
-		for(FeatureCalculator f : this.getFeatures())
-			System.out.println(f.getDescription());
-
-		System.out.println("To calculate: ");
-		for(FeatureCalculator f : featuresToCalculate)
-			System.out.println(f.getDescription());
-
 		final Object monitor = featureCache;
 
 		final Object imagePixels = getPixels(c, z, t);
@@ -439,10 +463,14 @@ public class ImageFeatures implements Serializable
 
 						processingFeatureCalculators.remove(featureCalculator);
 
+						long computationTime = System.currentTimeMillis() - start;
 						synchronized (monitor)
 						{
+							recordComputationTime(featureCalculator, computationTime, pixelsPerChannel*numChannels);
 							int numRemaining = processingFeatureCalculators.size() + remainingFeatureCalculators.size();
-							System.out.println("Calculated feature "+(featuresToCalculate.length - numRemaining)+"/"+featuresToCalculate.length+" for " + title + ": " + featureCalculator.getDescription() + " in " + (System.currentTimeMillis() - start) + "ms. [" + numRemaining + " remaining]");
+
+							if(verbose)
+								System.out.println("Calculated feature "+(featuresToCalculate.length - numRemaining)+"/"+featuresToCalculate.length+" for " + title + ": " + featureCalculator.getDescription() + " in " + (System.currentTimeMillis() - start) + "ms. [" + numRemaining + " remaining]");
 
 							onProgress(featuresToCalculate.length - numRemaining, featuresToCalculate.length, "Calculated feature "+title);
 
@@ -463,7 +491,8 @@ public class ImageFeatures implements Serializable
 			}
 		}
 
-		System.out.println("Calculated all features for " + title + " in " + (System.currentTimeMillis() - start) + "ms.");
+		if(verbose)
+			System.out.println("Calculated all features for " + title + " in " + (System.currentTimeMillis() - start) + "ms.");
 
 		for (Future future : waitFutures)
 		{
@@ -472,7 +501,6 @@ public class ImageFeatures implements Serializable
 				throw new RuntimeException("Concurrent calculation of image derivatives failed.");
 		}
 
-		System.out.println("Finished calculating features");
 		return true;
 	}
 
@@ -490,12 +518,57 @@ public class ImageFeatures implements Serializable
 
 	public void serialize(Path path) throws Exception
 	{
-		Utility.serializeObject(this, path.toFile(), true);
+		ImageFeatures toSerialize = new ImageFeatures(this);
+		toSerialize.removeDerivedFeatures();
+
+
+		Utility.serializeObject(toSerialize, path.toFile(), false);
+	}
+
+	private void removeDerivedFeatures()
+	{
+		Collection<FeatureCalculator> toRemove = getFeatures();
+		Collection<FeatureCalculator> toSave = toRemove.stream()
+				.filter(f -> f.getDependencies().length == 0)
+				.collect(Collectors.toCollection(HashSet::new));
+
+		toRemove.removeAll(toSave);
+
+		for(FeatureCalculator f : toRemove)
+		{
+			boolean dependenciesMet = true;
+			for(FeatureCalculator d : f.getDependencies())
+				if(!toSave.contains(d) && ! toRemove.contains(d))
+				{
+					dependenciesMet = false;
+					break;
+				}
+
+			if(!dependenciesMet)
+				toSave.add(f);
+		}
+
+		toRemove.removeAll(toSave);
+
+		Collection<FeatureCalculator> quickToCompute = toSave.stream()
+				.filter(f -> (getAverageComputationTime(f) < SAVE_THRESHOLD))
+				.collect(Collectors.toCollection(ArrayList::new));
+
+		toRemove.addAll(quickToCompute);
+		toSave.removeAll(toRemove);
+
+		toRemove.remove(Identity.get());
+		toSave.add(Identity.get());
+
+		for(Map<FeatureCalculator, Object> featureCache : features)
+			for(FeatureCalculator f : toRemove)
+				if(featureCache.containsKey(f))
+					featureCache.remove(f);
 	}
 
 	public static ImageFeatures deserialize(Path path) throws Exception
 	{
-		return (ImageFeatures) Utility.deserializeObject(path.toFile(), true);
+		return (ImageFeatures) Utility.deserializeObject(path.toFile(), false);
 	}
 
 	public static class ByteReader implements FeatureReader
@@ -614,5 +687,28 @@ public class ImageFeatures implements Serializable
 		{
 			return values;
 		}
+	}
+
+	private static void recordComputationTime(FeatureCalculator featureCalculator, long time, int numPixels)
+	{
+		if(!computationTimes.containsKey(featureCalculator))
+		{
+			Vector<Double> times = new Vector<>();
+			times.add(((double)time)/numPixels);
+			computationTimes.put(featureCalculator, times);
+		}
+		else
+		{
+			computationTimes.get(featureCalculator).add(((double)time)/numPixels);
+		}
+	}
+
+	private static double getAverageComputationTime(FeatureCalculator featureCalculator)
+	{
+		Collection<Double> times = computationTimes.getOrDefault(featureCalculator, null);
+		if(times == null)
+			return Double.MAX_VALUE;
+
+		return times.stream().count()/times.size();
 	}
 }

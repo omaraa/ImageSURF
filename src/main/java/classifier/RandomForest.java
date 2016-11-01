@@ -223,22 +223,16 @@ public class RandomForest implements Serializable
 				public void run()
 				{
 					long startTime = System.currentTimeMillis();
-					System.out.println("Building tree " + iteration + "...");
-
 					final int[] trainingSet = getTrainingSet(bagSize, trainingSetRandomSeed, instanceIndices);
 
 					try
 					{
 						currentClassifier.buildTree(data, trainingSet, treeRandomSeed);
-
-						System.out.println("Built tree " + iteration + " in " + (System.currentTimeMillis() - startTime) + "ms.");
 						onProgress(treesBuilt.getAndAdd(1), numTrees, "Built tree "+iteration+" in " + (System.currentTimeMillis() - startTime) + "ms");
 					}
 					catch (Exception e)
 					{
-						System.err.println("Failed to build tree " + iteration + " in " + (System.currentTimeMillis() - startTime) + "ms.");
-						e.printStackTrace();
-						throw new RuntimeException(e);
+						throw new RuntimeException("Failed to build tree " + iteration + " in " + (System.currentTimeMillis() - startTime) + "ms.", e);
 					}
 				}
 			}));

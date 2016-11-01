@@ -1,4 +1,5 @@
 import java.io.File;
+import java.util.concurrent.ExecutionException;
 
 import classifier.ImageSurfClassifier;
 import classifier.RandomForest;
@@ -24,7 +25,7 @@ import org.scijava.widget.FileWidget;
 import util.Utility;
 
 @Plugin(type = Command.class, headless = true,
-	menuPath = "Plugins>Segmentation>Apply ImageSURF Classifier")
+	menuPath = "Plugins>Segmentation>ImageSURF>Apply ImageSURF Classifier")
 public class ApplyImageSurf implements Command{
 
 	@Parameter
@@ -39,43 +40,12 @@ public class ApplyImageSurf implements Command{
 	@Parameter
 	private DatasetIOService datasetIOService;
 
-	@Parameter(label = "ImageSURF Classifier Path", type = ItemIO.INPUT)
+	@Parameter(label = "ImageSURF classifier", type = ItemIO.INPUT,
+	description = "ImageSURF classifier file. If you have not yet trained a classifier, train it using the \"Train ImageSURF Classifier command")
 	private File classifierFile;
 
 	@Parameter(label = "Input image", type = ItemIO.BOTH)
 	private ImagePlus image;
-
-	@Parameter(visibility = ItemVisibility.MESSAGE)
-	private final String labelImageFeatures= "----- Training Image Features -----";
-
-	@Parameter(label = "Training image features input path",
-			type = ItemIO.INPUT,
-			required = false,
-			style= FileWidget.DIRECTORY_STYLE,
-			initializer = "initialiseDefaults")
-	private File featuresInputPath;
-
-	@Parameter(label = "Training image features output path",
-			type = ItemIO.INPUT,
-			required = false,
-			style = FileWidget.DIRECTORY_STYLE,
-			initializer = "initialiseDefaults")
-	private File featuresOutputPath;
-
-	@Parameter(label = "Training image features path suffix",
-			type = ItemIO.INPUT,
-			required = false,
-			initializer = "initialiseDefaults")
-	private String featuresPathSuffix = ".features";
-
-	void initialiseDefaults()
-	{
-		featuresInputPath = SyncedParameters.featuresInputPath;
-		featuresOutputPath = SyncedParameters.featuresOutputPath;
-		featuresPathSuffix = SyncedParameters.featuresSuffix;
-		classifierFile = SyncedParameters.classifierPath;
-
-	}
 
 	public static void main(final String... args) throws Exception {
 		// create the ImageJ application context with all available services
@@ -97,62 +67,8 @@ public class ApplyImageSurf implements Command{
 				throw new RuntimeException("ImageSURF does not yet support multi-channel images.");
 
 			final ImageSurfClassifier imageSurfClassifier = (ImageSurfClassifier) Utility.deserializeObject(classifierFile, true);
-
-			File featureOutputFile = (featuresOutputPath== null) ? null : new File(featuresOutputPath, image.getTitle()+(featuresPathSuffix == null ? "" : featuresPathSuffix));
-			File featuresInputFile = (featuresInputPath == null) ? null : new File(featuresInputPath, image.getTitle()+(featuresPathSuffix == null ? "" : featuresPathSuffix));
-
-			final ImageFeatures features = (featuresInputFile == null || !featuresInputFile.exists() || !featuresInputFile.isFile()) ? new ImageFeatures(image) : (ImageFeatures) Utility.deserializeObject(featuresInputFile, true);
-
-			if(imageSurfClassifier.getPixelType() != features.pixelType)
-				throw new RuntimeException("Classifier pixel type ("+
-						imageSurfClassifier.getPixelType()+") does not match image pixel type ("+features.pixelType+")");
-
-			final RandomForest randomForest = imageSurfClassifier.getRandomForest();
-			randomForest.setNumThreads(Prefs.getThreads());
-
-
-			final ImageStack outputStack = new ImageStack(image.getWidth(), image.getHeight());
-			final int numPixels = image.getWidth()*image.getHeight();
-			boolean featuresCalculated = false;
-
-			//todo: merge channels in multi-channel images and expand feature set. e.g., features sets for R, G, B, RG, RB, GB and RGB
-			//			for(int c = 0; c< image.getNChannels(); c++)
-			int currentSlice = 1;
-			int c = 0;
-				for(int z = 0; z< image.getNSlices(); z++)
-					for(int t = 0; t< image.getNFrames(); t++)
-					{
-
-						ImageFeatures.ProgressListener imageFeaturesProgressListener = (current, max, message) ->
-								statusService.showStatus(current, max, "Calculating features for plane "+currentSlice+"/"+
-								(image.getNChannels()*image.getNSlices()*image.getNFrames()));
-
-						features.addProgressListener(imageFeaturesProgressListener);
-						if(features.calculateFeatures(c, z, t, imageSurfClassifier.getFeatures()))
-							featuresCalculated = true;
-						features.removeProgressListener(imageFeaturesProgressListener);
-
-						final FeatureReader featureReader = features.getReader(c, z, t, imageSurfClassifier.getFeatures());
-
-						RandomForest.ProgressListener randomForestProgressListener = (current, max, message) ->
-								statusService.showStatus(current, max, "Segmenting plane "+currentSlice+"/"+
-								(image.getNChannels()*image.getNSlices()*image.getNFrames()));
-
-						randomForest.addProgressListener(randomForestProgressListener);
-						int[] classes = randomForest.classForInstances(featureReader);
-						randomForest.removeprogressListener(randomForestProgressListener);
-						byte[] segmentationPixels = new byte[numPixels];
-
-						for(int i=0;i<numPixels;i++)
-						{
-							segmentationPixels[i] = (byte) (classes[i] == 0 ? 0 : 0xff);
-						}
-
-						outputStack.addSlice("", segmentationPixels);
-					}
-
-			if(featureOutputFile!=null && featuresCalculated)
-				features.serialize(featureOutputFile.toPath());
+			final ImageFeatures features = new ImageFeatures(image);
+			final ImageStack outputStack = ImageSurf.segmentImage(imageSurfClassifier, features, image, statusService);
 
 			image.setStack(outputStack);
 		}
@@ -164,4 +80,5 @@ public class ApplyImageSurf implements Command{
 			throw new RuntimeException(e);
 		}
 	}
+
 }

@@ -14,7 +14,7 @@
 
 	<groupId>imagesurf</groupId>
 	<artifactId>imagesurf</artifactId>
-	<version>1.0.0</version>
+	<version>0.0.1</version>
 
 	<name>ImageSURF</name>
 	<description>An ImageJ plugin to segment image using random forests</description>
