@@ -74,6 +74,9 @@ public class BatchApplyImageSurf implements Command{
 	@Override
 	public void run()
 	{
+		if(imagesPattern == null)
+			imagesPattern = "";
+
 		final ImageSurfClassifier imageSurfClassifier;
 		try
 		{

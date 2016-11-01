@@ -192,6 +192,9 @@ public class TrainImageSurf implements Command{
 	{
 		onRadiiChanged();
 
+		if(imagePattern == null)
+			imagePattern = "";
+
 		labelFiles = labelPath.listFiles(imageLabelFileFilter);
 		imageFiles = Arrays.stream(labelFiles)
 				.map((l) -> new File(imagePath, l.getName()))
