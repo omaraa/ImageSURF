@@ -1,28 +1,18 @@
 package feature.calculator;
 
-import ij.plugin.filter.GaussianBlur;
-import ij.process.ByteProcessor;
-import ij.process.ShortProcessor;
-
-import java.awt.image.ColorModel;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Map;
 
-public class Gaussian implements FeatureCalculator, Serializable
+abstract class Rank implements FeatureCalculator, Serializable
 {
 	static final long serialVersionUID = 42L;
-	public static final int DEFAULT_RADIUS = 5;
-	private int radius = DEFAULT_RADIUS;
 
-	public Gaussian(int radius)
-	{
-		setRadius(radius);
-	}
+	private final RankFilter filter;
 
-	public Gaussian()
+	protected Rank(double radius, RankFilter.Type type)
 	{
-		setRadius(DEFAULT_RADIUS);
+		filter = new RankFilter(type, radius);
 	}
 
 	@Override
@@ -31,12 +21,7 @@ public class Gaussian implements FeatureCalculator, Serializable
 		if(calculated!=null && calculated.containsKey(this))
 			return calculated.get(this);
 
-		ByteProcessor bp = new ByteProcessor(width, height, Arrays.copyOf(pixels, pixels.length));
-
-		GaussianBlur gs = new GaussianBlur();
-		gs.blurGaussian(bp, 0.4*getRadius(), 0.4*getRadius(), 0.01);
-
-		byte[][] result = {(byte[]) bp.getPixels()};
+		byte[][] result = {filter.rank(Arrays.copyOf(pixels, pixels.length), width, height)};
 
 		if(calculated!=null)
 			calculated.put(this, result);
@@ -50,11 +35,7 @@ public class Gaussian implements FeatureCalculator, Serializable
 		if(calculated!=null && calculated.containsKey(this))
 			return calculated.get(this);
 
-		ShortProcessor sp = new ShortProcessor(width, height, Arrays.copyOf(pixels, pixels.length), null);
-		GaussianBlur gs = new GaussianBlur();
-		gs.blurGaussian(sp, 0.4*getRadius(), 0.4*getRadius(), 0.01);
-
-		short[][] result = {(short[]) sp.getPixels()};
+		short[][] result = {filter.rank(Arrays.copyOf(pixels, pixels.length), width, height)};
 
 		if(calculated!=null)
 			calculated.put(this, result);
@@ -64,12 +45,7 @@ public class Gaussian implements FeatureCalculator, Serializable
 
 	public int getRadius()
 	{
-		return radius;
-	}
-
-	public void setRadius(int radius)
-	{
-		this.radius = radius;
+		return (int) filter.radius;
 	}
 
 
@@ -87,18 +63,6 @@ public class Gaussian implements FeatureCalculator, Serializable
 	}
 
 	@Override
-	public FeatureCalculator duplicate()
-	{
-		return new Gaussian(radius);
-	}
-
-	@Override
-	public String getName()
-	{
-		return "Gaussian Blur";
-	}
-
-	@Override
 	public String getDescription()
 	{
 		return getName() + " ("+getRadius() + ')';
@@ -109,19 +73,19 @@ public class Gaussian implements FeatureCalculator, Serializable
 	{
 		if (this == o)
 			return true;
-		if (o == null || getClass() != o.getClass())
+		if (!(o instanceof Rank))
 			return false;
 
-		Gaussian gaussian = (Gaussian) o;
+		Rank rank = (Rank) o;
 
-		return radius == gaussian.radius;
+		return filter.equals(rank.filter);
 
 	}
 
 	@Override
 	public int hashCode()
 	{
-		return radius;
+		return filter.hashCode();
 	}
 
 	@Override
@@ -130,3 +94,4 @@ public class Gaussian implements FeatureCalculator, Serializable
 		return new FeatureCalculator[0];
 	}
 }
+

@@ -15,6 +15,9 @@ public interface FeatureCalculator extends Serializable
 			for(FeatureCalculator f : calculated.keySet())
 				byteCalculated.put(f, (byte[][]) calculated.get(f));
 
+			if(byteCalculated.containsKey(this))
+				return calculated.get(this);
+
 			byte[][] result = calculate((byte[]) pixels, width, height, byteCalculated);
 
 			for(FeatureCalculator f : byteCalculated.keySet())
@@ -33,6 +36,9 @@ public interface FeatureCalculator extends Serializable
 
 			for(FeatureCalculator f : calculated.keySet())
 				shortCalculated.put(f, (short[][]) calculated.get(f));
+
+			if(shortCalculated.containsKey(this))
+				return calculated.get(this);
 
 			short[][] result = calculate((short[]) pixels, width, height, shortCalculated);
 

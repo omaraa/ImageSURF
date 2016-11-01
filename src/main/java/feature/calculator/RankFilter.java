@@ -33,12 +33,12 @@ public class RankFilter implements Serializable
 
 	public final Type filterType;
 	public final double radius;
-	private final int[] lineRadii;
-	private final int kHeight;
-	private final int kRadius;
-	private final int kNPoints;
-	private final boolean smallKernel;
-	private final float minMaxOutliersSign;
+	private transient final int[] lineRadii;
+	private transient final int kHeight;
+	private transient final int kRadius;
+	private transient final int kNPoints;
+	private transient final boolean smallKernel;
+	private transient final float minMaxOutliersSign;
 
 	public byte[] rank(final byte[] pixels, final int width, final int height) {
 

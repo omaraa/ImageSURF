@@ -43,6 +43,9 @@ public class StandardDeviation implements FeatureCalculator, Serializable
 	@Override
 	public byte[][] calculate(byte[] pixels, int width, int height, Map<FeatureCalculator, byte[][]> calculated)
 	{
+		if(calculated!=null && calculated.containsKey(this))
+			return calculated.get(this);
+
 		pixels = Arrays.copyOf(pixels, pixels.length);
 
 		//AS DESCRIBED HERE - http://stackoverflow.com/questions/11456565/opencv-mean-sd-filter
@@ -88,6 +91,9 @@ public class StandardDeviation implements FeatureCalculator, Serializable
 	@Override
 	public short[][] calculate(short[] pixels, int width, int height, Map<FeatureCalculator, short[][]> calculated)
 	{
+		if(calculated!=null && calculated.containsKey(this))
+			return calculated.get(this);
+
 		pixels = Arrays.copyOf(pixels, pixels.length);
 
 		//AS DESCRIBED HERE - http://stackoverflow.com/questions/11456565/opencv-mean-sd-filter

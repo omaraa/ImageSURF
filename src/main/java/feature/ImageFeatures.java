@@ -519,13 +519,13 @@ public class ImageFeatures implements Serializable
 	public void serialize(Path path) throws Exception
 	{
 		ImageFeatures toSerialize = new ImageFeatures(this);
-		toSerialize.removeDerivedFeatures();
+		toSerialize.removeEasilyComputedFeatures();
 
 
 		Utility.serializeObject(toSerialize, path.toFile(), false);
 	}
 
-	private void removeDerivedFeatures()
+	private void removeEasilyComputedFeatures()
 	{
 		Collection<FeatureCalculator> toRemove = getFeatures();
 		Collection<FeatureCalculator> toSave = toRemove.stream()

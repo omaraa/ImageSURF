@@ -8,16 +8,9 @@ public class LocalIntensity implements FeatureCalculator, Serializable
 {
 	static final long serialVersionUID = 42L;
 
-	public static final int DEFAULT_SCALE = 5;
-
 	final int radius;
 	private final Min min;
 	private final Max max;
-
-	public LocalIntensity()
-	{
-		this(DEFAULT_SCALE);
-	}
 
 	public LocalIntensity(int radius)
 	{
@@ -30,14 +23,16 @@ public class LocalIntensity implements FeatureCalculator, Serializable
 	@Override
 	public FeatureCalculator[] getDependencies()
 	{
-		return new FeatureCalculator[] {new Min(radius), new Max(radius)};
+		return new FeatureCalculator[] {min, max};
 	}
 
 	@Override
 	public byte[][] calculate(byte[] pixels, int width, int height, Map<FeatureCalculator, byte[][]> calculated)
 	{
-		byte[] result = Arrays.copyOf(pixels, pixels.length);
+		if(calculated!=null && calculated.containsKey(this))
+			return calculated.get(this);
 
+		byte[] result = Arrays.copyOf(pixels, pixels.length);
 
 		final byte[][] minResult;
 		if(calculated!=null && calculated.containsKey(this.min))
@@ -98,8 +93,10 @@ public class LocalIntensity implements FeatureCalculator, Serializable
 	@Override
 	public short[][] calculate(short[] pixels, int width, int height, Map<FeatureCalculator, short[][]> calculated)
 	{
-		short[] result = Arrays.copyOf(pixels, pixels.length);
+		if(calculated!=null && calculated.containsKey(this))
+			return calculated.get(this);
 
+		short[] result = Arrays.copyOf(pixels, pixels.length);
 
 		final short[][] minResult;
 		if(calculated!=null && calculated.containsKey(this.min))
@@ -173,13 +170,13 @@ public class LocalIntensity implements FeatureCalculator, Serializable
 	@Override
 	public String getName()
 	{
-		return "Locally scaled intensity (" + radius + ")";
+		return "Locally scaled intensity";
 	}
 
 	@Override
 	public String getDescription()
 	{
-		return getName();
+		return getName()+" (" + radius + ")";
 	}
 
 	@Override

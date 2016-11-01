@@ -20,6 +20,9 @@ public class Identity implements FeatureCalculator, Serializable
 	@Override
 	public byte[][] calculate(byte[] pixels, int width, int height, Map<FeatureCalculator, byte[][]> calculated)
 	{
+		if(calculated!=null && calculated.containsKey(this))
+			return calculated.get(this);
+
 		byte[][] identity = new byte[][] {Arrays.copyOf(pixels, pixels.length)};
 		calculated.put(this, identity);
 
@@ -29,6 +32,9 @@ public class Identity implements FeatureCalculator, Serializable
 	@Override
 	public short[][] calculate(short[] pixels, int width, int height, Map<FeatureCalculator, short[][]> calculated)
 	{
+		if(calculated!=null && calculated.containsKey(this))
+			return calculated.get(this);
+
 		short[][] identity = new short[][] {Arrays.copyOf(pixels, pixels.length)};
 		calculated.put(this, identity);
 

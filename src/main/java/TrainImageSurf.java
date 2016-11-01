@@ -59,7 +59,7 @@ public class TrainImageSurf implements Command{
 
 	@Parameter
 	private UIService ui;
-	
+
 	@Parameter
 	private PrefService prefService;
 
@@ -361,7 +361,7 @@ public class TrainImageSurf implements Command{
 						imageProcessor = new ShortProcessor(maxWidth, maxHeight);
 
 						imageProcessor.insert(imageStack.getProcessor(sliceIndex+1), xOffset, yOffset);
-						segmentationProcessor.insert(segmentationStack.getProcessor(sliceIndex+1).convertToShort(true), xOffset, yOffset);
+						segmentationProcessor.insert(segmentationStack.getProcessor(sliceIndex+1), xOffset, yOffset);
 						break;
 					default:
 						throw new RuntimeException("Pixel type "+pixelType+ "not supported.");
