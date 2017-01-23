@@ -1,9 +1,28 @@
-import classifier.ImageSurfClassifier;
-import classifier.RandomForest;
-import feature.FeatureReader;
-import feature.ImageFeatures;
-import feature.PixelType;
-import feature.calculator.FeatureCalculator;
+/*
+ *     This file is part of ImageSURF.
+ *
+ *     ImageSURF is free software: you can redistribute it and/or modify
+ *     it under the terms of the GNU General Public License as published by
+ *     the Free Software Foundation, either version 3 of the License, or
+ *     (at your option) any later version.
+ *
+ *     ImageSURF is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ *     You should have received a copy of the GNU General Public License
+ *     along with ImageSURF.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+package imagesurf;
+
+import imagesurf.classifier.ImageSurfClassifier;
+import imagesurf.classifier.RandomForest;
+import imagesurf.feature.FeatureReader;
+import imagesurf.feature.ImageFeatures;
+import imagesurf.feature.PixelType;
+import imagesurf.feature.calculator.FeatureCalculator;
 import ij.IJ;
 import ij.ImagePlus;
 import ij.ImageStack;
@@ -12,17 +31,13 @@ import ij.io.FileSaver;
 import ij.process.ByteProcessor;
 import ij.process.ImageProcessor;
 import ij.process.ShortProcessor;
-import io.scif.services.DatasetIOService;
 import net.imagej.Dataset;
-import net.imagej.DatasetService;
 import net.imagej.ImageJ;
-import net.imagej.ops.OpService;
 import net.mintern.primitive.Primitive;
 import org.scijava.ItemIO;
 import org.scijava.ItemVisibility;
 import org.scijava.app.StatusService;
 import org.scijava.command.Command;
-import org.scijava.command.CommandService;
 import org.scijava.log.LogService;
 import org.scijava.plugin.Parameter;
 import org.scijava.plugin.Plugin;
@@ -32,7 +47,7 @@ import org.scijava.ui.UIService;
 import org.scijava.util.ColorRGB;
 import org.scijava.widget.FileWidget;
 import org.scijava.widget.NumberWidget;
-import util.Utility;
+import imagesurf.util.Utility;
 
 import java.io.File;
 import java.io.FileFilter;
@@ -94,17 +109,16 @@ public class TrainImageSurf implements Command{
 	private final String labelImageFeatures = "----- Training Image Features -----";
 
 	@Parameter(label = "Minimum feature radius",
-			style = NumberWidget.SCROLL_BAR_STYLE, min = "0", max = "250",
+			style = NumberWidget.SCROLL_BAR_STYLE, min = "0", max = "257",
 			type = ItemIO.INPUT,
 			callback = "onRadiiChanged",
 			description = "The minimum radius (in pixels) to be considered for feature calculation.")
 	private int minFeatureRadius = 0;
 
 	@Parameter(label = "Maximum feature radius",
-			style = NumberWidget.SCROLL_BAR_STYLE, min = "0", max = "250",
+			style = NumberWidget.SCROLL_BAR_STYLE, min = "0", max = "257",
 			type = ItemIO.INPUT,
 			callback = "onRadiiChanged",
-			initializer = "initialiseMaxFeatureRadius",
 			description = "The maximum radius (in pixels) to be considered for feature calculation. WARNING: Some " +
 					"large radius feature calculations may require substantial computing time.")
 	private int maxFeatureRadius = 35;
@@ -122,11 +136,15 @@ public class TrainImageSurf implements Command{
 	private final String labelClassifier = "----- Classifier (See ImageSURF Classifier Settings for options) -----";
 
 	@Parameter(label = "Classifier output path", type = ItemIO.INPUT, style= FileWidget.SAVE_STYLE,
-			description = "Where the classifier will be saved. A \".imagesurf\" file extension is recommended.")
+			description = "Where the imagesurf.classifier will be saved. A \".imagesurf\" file extension is recommended.")
 	private File classifierOutputPath = new File(System.getProperty("user.home"), "ImageSURF.imagesurf");
 
-//	@Parameter(label = "Advanced classifier settings", visibility = ItemVisibility.INVISIBLE, callback = "onAdvancedPressed")
-//	private Button advancedButton;
+	protected void initialiseValues()
+	{
+		minFeatureRadius = prefService.getInt(ImageSurfSettings.IMAGESURF_MIN_FEATURE_RADIUS, ImageSurfSettings.DEFAULT_MIN_FEATURE_RADIUS);
+		maxFeatureRadius = prefService.getInt(ImageSurfSettings.IMAGESURF_MAX_FEATURE_RADIUS, ImageSurfSettings.DEFAULT_MAX_FEATURE_RADIUS);
+		onRadiiChanged();
+	}
 
 	@Parameter(label="After training",
 			choices={AFTER_TRAINING_OPTION_NOTHING,AFTER_TRAINING_OPTION_DISPLAY,AFTER_TRAINING_OPTION_SAVE},
@@ -149,16 +167,9 @@ public class TrainImageSurf implements Command{
 	File featuresPath;
 	File[] featureFiles;
 
-	protected FeatureCalculator[] getFeatureCalculators(PixelType pixelType, int minFeatureRadius, int maxFeatureRadius)
-	{
-		return Arrays.stream(pixelType.getDefaultFeatureCalculators())
-				.filter((f) -> f.getRadius() >= minFeatureRadius && f.getRadius() <= maxFeatureRadius)
-				.toArray(FeatureCalculator[]::new);
-	}
-
 	protected void onRadiiChanged() {
 
-		selectedFeatures = getFeatureCalculators(PixelType.GRAY_8_BIT, minFeatureRadius, maxFeatureRadius);
+		selectedFeatures = ImageSurfImageFilterSelection.getFeatureCalculators(PixelType.GRAY_8_BIT, minFeatureRadius, maxFeatureRadius, prefService);
 
 		List<String> radii = Arrays.stream(selectedFeatures)
 						.map((f) -> f.getRadius())
@@ -180,17 +191,13 @@ public class TrainImageSurf implements Command{
 		ij.command().run(TrainImageSurf.class, true);
 	}
 
-//	void onAdvancedPressed()
-//	{
-//		System.out.println("Advanced pressed");
-//
-//		commandService.run(ImageSurfSettings.class, false);
-//	}
-
 	@Override
 	public void run()
 	{
 		onRadiiChanged();
+
+		prefService.put(ImageSurfSettings.IMAGESURF_MIN_FEATURE_RADIUS, minFeatureRadius);
+		prefService.put(ImageSurfSettings.IMAGESURF_MAX_FEATURE_RADIUS, maxFeatureRadius);
 
 		if(imagePattern == null)
 			imagePattern = "";
@@ -209,7 +216,7 @@ public class TrainImageSurf implements Command{
 			featuresPath.mkdirs();
 
 		if(selectedFeatures == null || selectedFeatures.length == 0)
-			throw new RuntimeException("Cannot build classifier with no features.");
+			throw new RuntimeException("Cannot build imagesurf.classifier with no features.");
 
 		String randomSeedString= prefService.get(ImageSurfSettings.IMAGESURF_RANDOM_SEED, null);
 		random = (randomSeedString == null || randomSeedString.isEmpty()) ? new Random() : new Random(randomSeedString.hashCode());
@@ -238,6 +245,9 @@ public class TrainImageSurf implements Command{
 			throw new RuntimeException("Failed to get training examples", e);
 		}
 
+		if(reader.getNumInstances() == 0)
+			throw new RuntimeException("No example pixels provided - cannot train classifier.");
+
 		RandomForest.ProgressListener randomForestProgressListener = (current, max, message) ->
 				statusService.showStatus(current, max, message);
 		randomForest.addProgressListener(randomForestProgressListener);
@@ -254,17 +264,7 @@ public class TrainImageSurf implements Command{
 
 
 		ImageSurfClassifier imageSurfClassifier = new ImageSurfClassifier(randomForest, selectedFeatures, pixelType);
-//		final ImageSurfClassifier imageSurfClassifier;
-//		try
-//		{
-//			imageSurfClassifier = (ImageSurfClassifier) Utility.deserializeObject(classifierOutputPath, true);
-//		}
-//		catch (IOException | ClassNotFoundException e)
-//		{
-//			e.printStackTrace();
-//			throw new RuntimeException(e);
-//		}
-//
+
 		writeClassifier(imageSurfClassifier);
 
 		switch (afterTraining)
@@ -285,7 +285,7 @@ public class TrainImageSurf implements Command{
 			IJ.showMessage("ImageSURF training data files " +
 					(AFTER_TRAINING_OPTION_SAVE.equals(afterTraining) ?  "and segmented training images " : "") +
 					"have been created in the folder\n\n"+classifierOutputPath.getAbsolutePath()+"\n\nIt is recommended " +
-					"that you delete these files after the classifier has been finalised to save disk space."
+					"that you delete these files after the imagesurf.classifier has been finalised to save disk space."
 			);
 	}
 
@@ -321,7 +321,7 @@ public class TrainImageSurf implements Command{
 					imageFeatures = ImageFeatures.deserialize(featureFiles[imageIndex].toPath());
 				}
 
-				ImageStack segmentation = ImageSurf.segmentImage(imageSurfClassifier, imageFeatures, image, statusService);
+				ImageStack segmentation = Utility.segmentImage(imageSurfClassifier, imageFeatures, image, statusService);
 
 				segmentationStacks[imageIndex] = segmentation;
 				imageStacks[imageIndex] = image.getStack();
@@ -416,7 +416,7 @@ public class TrainImageSurf implements Command{
 					imageFeatures = ImageFeatures.deserialize(featureFiles[imageIndex].toPath());
 				}
 
-				ImageStack segmentation = ImageSurf.segmentImage(imageSurfClassifier, imageFeatures, image, statusService);
+				ImageStack segmentation = Utility.segmentImage(imageSurfClassifier, imageFeatures, image, statusService);
 				ImagePlus segmentationImage = new ImagePlus("segmentation", segmentation);
 
 				if(segmentation.size() > 1)
@@ -474,14 +474,14 @@ public class TrainImageSurf implements Command{
 			}
 			catch (IOException e)
 			{
-				DialogPrompt.Result result = ui.showDialog("Failed to write classifier to "+classifierOutputPath.getAbsolutePath()+". Try another path?", DialogPrompt.MessageType.ERROR_MESSAGE, DialogPrompt.OptionType.OK_CANCEL_OPTION);
+				DialogPrompt.Result result = ui.showDialog("Failed to write imagesurf.classifier to "+classifierOutputPath.getAbsolutePath()+". Try another path?", DialogPrompt.MessageType.ERROR_MESSAGE, DialogPrompt.OptionType.OK_CANCEL_OPTION);
 
 				switch(result)
 				{
 					case CANCEL_OPTION:
-						if(ui.showDialog("Trained classifier will be lost. Are you sure?", DialogPrompt.MessageType.WARNING_MESSAGE, DialogPrompt.OptionType.YES_NO_OPTION) == DialogPrompt.Result.YES_OPTION)
+						if(ui.showDialog("Trained imagesurf.classifier will be lost. Are you sure?", DialogPrompt.MessageType.WARNING_MESSAGE, DialogPrompt.OptionType.YES_NO_OPTION) == DialogPrompt.Result.YES_OPTION)
 						{
-							log.error("Failed to save classifier", e);
+							log.error("Failed to save imagesurf.classifier", e);
 								return;
 						}
 						break;
@@ -599,7 +599,7 @@ public class TrainImageSurf implements Command{
 			if (imageIndex == 0)
 			{
 				pixelType = imageFeatures.pixelType;
-				selectedFeatures = getFeatureCalculators(pixelType, minFeatureRadius, maxFeatureRadius);
+				selectedFeatures = ImageSurfImageFilterSelection.getFeatureCalculators(pixelType, minFeatureRadius, maxFeatureRadius, prefService);
 			}
 
 			if (imageFeatures.pixelType != pixelType)

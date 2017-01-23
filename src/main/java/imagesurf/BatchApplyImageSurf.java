@@ -1,24 +1,41 @@
-import classifier.ImageSurfClassifier;
-import classifier.RandomForest;
-import feature.FeatureReader;
-import feature.ImageFeatures;
+/*
+ *     This file is part of ImageSURF.
+ *
+ *     ImageSURF is free software: you can redistribute it and/or modify
+ *     it under the terms of the GNU General Public License as published by
+ *     the Free Software Foundation, either version 3 of the License, or
+ *     (at your option) any later version.
+ *
+ *     ImageSURF is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ *     You should have received a copy of the GNU General Public License
+ *     along with ImageSURF.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+package imagesurf;
+
+import imagesurf.classifier.ImageSurfClassifier;
+import imagesurf.classifier.RandomForest;
+import imagesurf.feature.FeatureReader;
+import imagesurf.feature.ImageFeatures;
 import ij.ImagePlus;
 import ij.ImageStack;
 import ij.Prefs;
 import ij.io.FileSaver;
 import io.scif.services.DatasetIOService;
-import net.imagej.Dataset;
 import net.imagej.DatasetService;
 import net.imagej.ImageJ;
 import org.scijava.ItemIO;
-import org.scijava.ItemVisibility;
 import org.scijava.app.StatusService;
 import org.scijava.command.Command;
 import org.scijava.log.LogService;
 import org.scijava.plugin.Parameter;
 import org.scijava.plugin.Plugin;
 import org.scijava.widget.FileWidget;
-import util.Utility;
+import imagesurf.util.Utility;
 
 import java.io.File;
 import java.io.FileFilter;
@@ -41,7 +58,7 @@ public class BatchApplyImageSurf implements Command{
 	private DatasetIOService datasetIOService;
 
 	@Parameter(label = "ImageSURF Classifier Path", type = ItemIO.INPUT,
-			description = "ImageSURF classifier file. If you have not yet trained a classifier, train it using the \"Train ImageSURF Classifier command")
+			description = "ImageSURF imagesurf.classifier file. If you have not yet trained a imagesurf.classifier, train it using the \"Train ImageSURF Classifier command")
 	private File classifierFile;
 
 	@Parameter(label = "Input images path",
@@ -84,7 +101,7 @@ public class BatchApplyImageSurf implements Command{
 		}
 		catch (IOException | ClassNotFoundException e)
 		{
-			log.error("Failed to load classifier", e);
+			log.error("Failed to load imagesurf.classifier", e);
 			return;
 		}
 
@@ -146,7 +163,7 @@ public class BatchApplyImageSurf implements Command{
 				final int numPixels = image.getWidth() * image.getHeight();
 				boolean featuresCalculated = false;
 
-				//todo: merge channels in multi-channel images and expand feature set. e.g., features sets for R, G, B, RG, RB, GB and RGB
+				//todo: merge channels in multi-channel images and expand imagesurf.feature set. e.g., features sets for R, G, B, RG, RB, GB and RGB
 				//			for(int c = 0; c< image.getNChannels(); c++)
 				int currentSlice = 1;
 				int c = 0;

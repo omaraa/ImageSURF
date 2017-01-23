@@ -1,14 +1,31 @@
-package feature;
+/*
+ *     This file is part of ImageSURF.
+ *
+ *     ImageSURF is free software: you can redistribute it and/or modify
+ *     it under the terms of the GNU General Public License as published by
+ *     the Free Software Foundation, either version 3 of the License, or
+ *     (at your option) any later version.
+ *
+ *     ImageSURF is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ *     You should have received a copy of the GNU General Public License
+ *     along with ImageSURF.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+package imagesurf.feature;
 
 import ij.CompositeImage;
 import ij.ImagePlus;
 import ij.Prefs;
 import ij.process.ByteProcessor;
 import ij.process.ShortProcessor;
-import feature.calculator.FeatureCalculator;
-import feature.calculator.Identity;
+import imagesurf.feature.calculator.FeatureCalculator;
+import imagesurf.feature.calculator.Identity;
 import net.mintern.primitive.Primitive;
-import util.Utility;
+import imagesurf.util.Utility;
 
 import java.io.Serializable;
 import java.nio.file.Path;
@@ -421,7 +438,7 @@ public class ImageFeatures implements Serializable
 		{
 			final List<FeatureCalculator> toAdd = new ArrayList<FeatureCalculator>();
 
-			//Add feature calculators with no dependencies or dependencies already calculated to the list
+			//Add imagesurf.feature calculators with no dependencies or dependencies already calculated to the list
 			for (FeatureCalculator featureCalculator : remainingFeatureCalculators)
 			{
 				if (featureCalculator.getDependencies().length == 0)
@@ -470,9 +487,9 @@ public class ImageFeatures implements Serializable
 							int numRemaining = processingFeatureCalculators.size() + remainingFeatureCalculators.size();
 
 							if(verbose)
-								System.out.println("Calculated feature "+(featuresToCalculate.length - numRemaining)+"/"+featuresToCalculate.length+" for " + title + ": " + featureCalculator.getDescription() + " in " + (System.currentTimeMillis() - start) + "ms. [" + numRemaining + " remaining]");
+								System.out.println("Calculated imagesurf.feature "+(featuresToCalculate.length - numRemaining)+"/"+featuresToCalculate.length+" for " + title + ": " + featureCalculator.getDescription() + " in " + (System.currentTimeMillis() - start) + "ms. [" + numRemaining + " remaining]");
 
-							onProgress(featuresToCalculate.length - numRemaining, featuresToCalculate.length, "Calculated feature "+title);
+							onProgress(featuresToCalculate.length - numRemaining, featuresToCalculate.length, "Calculated imagesurf.feature "+title);
 
 							monitor.notifyAll();
 						}

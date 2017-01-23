@@ -1,19 +1,33 @@
-import java.io.File;
-import java.util.concurrent.ExecutionException;
+/*
+ *     This file is part of ImageSURF.
+ *
+ *     ImageSURF is free software: you can redistribute it and/or modify
+ *     it under the terms of the GNU General Public License as published by
+ *     the Free Software Foundation, either version 3 of the License, or
+ *     (at your option) any later version.
+ *
+ *     ImageSURF is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ *     You should have received a copy of the GNU General Public License
+ *     along with ImageSURF.  If not, see <http://www.gnu.org/licenses/>.
+ */
 
-import classifier.ImageSurfClassifier;
-import classifier.RandomForest;
-import feature.FeatureReader;
-import feature.ImageFeatures;
+package imagesurf;
+
+import java.io.File;
+
+import imagesurf.classifier.ImageSurfClassifier;
+import imagesurf.feature.ImageFeatures;
 import ij.ImagePlus;
 import ij.ImageStack;
-import ij.Prefs;
 import net.imagej.Dataset;
 import net.imagej.DatasetService;
 import net.imagej.ImageJ;
 
 import org.scijava.ItemIO;
-import org.scijava.ItemVisibility;
 import org.scijava.app.StatusService;
 import org.scijava.command.Command;
 import org.scijava.log.LogService;
@@ -21,8 +35,7 @@ import org.scijava.plugin.Parameter;
 import org.scijava.plugin.Plugin;
 
 import io.scif.services.DatasetIOService;
-import org.scijava.widget.FileWidget;
-import util.Utility;
+import imagesurf.util.Utility;
 
 @Plugin(type = Command.class, headless = true,
 	menuPath = "Plugins>Segmentation>ImageSURF>Apply ImageSURF Classifier")
@@ -40,8 +53,8 @@ public class ApplyImageSurf implements Command{
 	@Parameter
 	private DatasetIOService datasetIOService;
 
-	@Parameter(label = "ImageSURF classifier", type = ItemIO.INPUT,
-	description = "ImageSURF classifier file. If you have not yet trained a classifier, train it using the \"Train ImageSURF Classifier command")
+	@Parameter(label = "ImageSURF imagesurf.classifier", type = ItemIO.INPUT,
+	description = "ImageSURF imagesurf.classifier file. If you have not yet trained a imagesurf.classifier, train it using the \"Train ImageSURF Classifier command")
 	private File classifierFile;
 
 	@Parameter(label = "Input image", type = ItemIO.BOTH)
@@ -68,7 +81,7 @@ public class ApplyImageSurf implements Command{
 
 			final ImageSurfClassifier imageSurfClassifier = (ImageSurfClassifier) Utility.deserializeObject(classifierFile, true);
 			final ImageFeatures features = new ImageFeatures(image);
-			final ImageStack outputStack = ImageSurf.segmentImage(imageSurfClassifier, features, image, statusService);
+			final ImageStack outputStack = Utility.segmentImage(imageSurfClassifier, features, image, statusService);
 
 			image.setStack(outputStack);
 		}

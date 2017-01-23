@@ -1,8 +1,24 @@
-package classifier;
+/*
+ *     This file is part of ImageSURF.
+ *
+ *     ImageSURF is free software: you can redistribute it and/or modify
+ *     it under the terms of the GNU General Public License as published by
+ *     the Free Software Foundation, either version 3 of the License, or
+ *     (at your option) any later version.
+ *
+ *     ImageSURF is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ *     You should have received a copy of the GNU General Public License
+ *     along with ImageSURF.  If not, see <http://www.gnu.org/licenses/>.
+ */
 
-import feature.FeatureReader;
-import net.imglib2.ops.parse.token.Int;
-import util.Utility;
+package imagesurf.classifier;
+
+import imagesurf.feature.FeatureReader;
+import imagesurf.util.Utility;
 
 import java.io.Serializable;
 import java.util.*;
@@ -49,7 +65,7 @@ public class RandomForest implements Serializable
 	public double[] calculateFeatureImportance(final FeatureReader reader, final int[] instanceIndices) throws InterruptedException
 	{
 		if(!isTrained())
-			throw new RuntimeException("Classifier must be built before calculating feature importance");
+			throw new RuntimeException("Classifier must be built before calculating imagesurf.feature importance");
 
 		ScrambledFeatureReader scrambleReader = new ScrambledFeatureReader(reader);
 
