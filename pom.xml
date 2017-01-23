@@ -17,7 +17,7 @@
 	<version>0.0.1</version>
 
 	<name>ImageSURF</name>
-	<description>An ImageJ plugin to segment image using random forests</description>
+	<description>An ImageJ plugin for pixel-based image segmentation using random forests</description>
 
 	<repositories>
 		<repository>
@@ -29,11 +29,15 @@
     <inceptionYear>2016</inceptionYear>
     <licenses>
         <license>
-            <name>CC0 1.0 Universal License</name>
-            <url>http://creativecommons.org/publicdomain/zero/1.0/</url>
-            <distribution>repo</distribution>
+            <name>GNU General Public License (GPL)</name>
+            <url>http://www.gnu.org/licenses/gpl.txt</url>
         </license>
     </licenses>
+
+    <issueManagement>
+        <system>GitHub Issues</system>
+        <url>https://github.com/omaraa/imagesurf/issues</url>
+    </issueManagement>
 
     <developers>
         <developer>
@@ -61,11 +65,6 @@
 			<groupId>net.imagej</groupId>
 			<artifactId>imagej-legacy</artifactId>
 		</dependency>
-        <dependency>
-            <groupId>nz.ac.waikato.cms.weka</groupId>
-            <artifactId>weka-stable</artifactId>
-            <version>3.8.0</version>
-        </dependency>
         <dependency>
             <groupId>net.mintern</groupId>
             <artifactId>primitive</artifactId>

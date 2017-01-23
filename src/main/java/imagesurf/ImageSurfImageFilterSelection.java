@@ -34,11 +34,11 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * Runs the Plugins::Segmentation::ImageSURF::Settings::ImageSURF Filter Selection dialog.
+ * Runs the Plugins::Segmentation::ImageSURF::Advanced::ImageSURF Filter Selection dialog.
  *
  * @author Aidan O'Mara
  */
-@Plugin(type = OptionsPlugin.class, menuPath = "Plugins>Segmentation>ImageSURF>Advanced>ImageSURF Classifier Settings")
+@Plugin(type = OptionsPlugin.class, menuPath = "Plugins>Segmentation>ImageSURF>Advanced>ImageSURF Filter Selection")
 
 public class ImageSurfImageFilterSelection extends OptionsPlugin {
 

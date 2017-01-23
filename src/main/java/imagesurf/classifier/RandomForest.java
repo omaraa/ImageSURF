@@ -212,7 +212,7 @@ public class RandomForest implements Serializable
 		}
 		if (m_KValue < 1)
 		{
-			m_KValue = (int) weka.core.Utils.log2(numAttributes - 1) + 1;
+			m_KValue = (int) Utility.log2(numAttributes - 1) + 1;
 
 		}
 
@@ -322,13 +322,13 @@ public class RandomForest implements Serializable
 				for (int j = 0; j < newProbs.length; j++)
 					sums[j] += newProbs[j];
 		}
-		if (weka.core.Utils.eq(weka.core.Utils.sum(sums), 0))
+		if (Utility.eq(Utility.sum(sums), 0))
 		{
 			return sums;
 		}
 		else
 		{
-			weka.core.Utils.normalize(sums);
+			Utility.normalize(sums);
 			return sums;
 		}
 	}
@@ -359,13 +359,13 @@ public class RandomForest implements Serializable
 							for (int j = 0; j < newProbs.length; j++)
 								sums[j] += newProbs[j];
 					}
-					if (weka.core.Utils.eq(weka.core.Utils.sum(sums), 0))
+					if (Utility.eq(Utility.sum(sums), 0))
 					{
 						result = sums;
 					}
 					else
 					{
-						weka.core.Utils.normalize(sums);
+						Utility.normalize(sums);
 						result = sums;
 					}
 					distributions[index] = result;
@@ -576,14 +576,14 @@ public class RandomForest implements Serializable
 
 				// Check if node doesn't contain enough instances or is pure
 			// or maximum depth reached
-			double totalWeight = weka.core.Utils.sum(classProbs);
+			double totalWeight = Utility.sum(classProbs);
 
 			// System.err.println("Total weight " + totalWeight);
 			// double sum = omaraa.Utils.sum(classProbs);
 			if (totalWeight < 2 * m_MinNum ||
 
 					// Nominal case
-					(weka.core.Utils.eq(classProbs[weka.core.Utils.maxIndex(classProbs)], weka.core.Utils.sum(classProbs)))
+					(Utility.eq(classProbs[Utility.maxIndex(classProbs)], Utility.sum(classProbs)))
 
 					||
 
@@ -594,7 +594,7 @@ public class RandomForest implements Serializable
 				m_Attribute = -1;
 				m_ClassDistribution = classProbs.clone();
 				m_NormalizedClassDistribution = classProbs.clone();
-				weka.core.Utils.normalize(m_NormalizedClassDistribution);
+				Utility.normalize(m_NormalizedClassDistribution);
 
 				return;
 			}
@@ -629,7 +629,7 @@ public class RandomForest implements Serializable
 
 				double currVal = gain(dists[0],priorVal(dists[0]));
 
-				if (weka.core.Utils.gr(currVal, 0)) {
+				if (Utility.gr(currVal, 0)) {
 					gainFound = true;
 				}
 
@@ -645,7 +645,7 @@ public class RandomForest implements Serializable
 			m_Attribute = bestIndex;
 
 			// Any useful split found?
-			if (weka.core.Utils.gr(val, 0)) {
+			if (Utility.gr(val, 0)) {
 
 				// Build subtrees
 				m_SplitPoint = split;
@@ -680,7 +680,7 @@ public class RandomForest implements Serializable
 			if(m_ClassDistribution!=null)
 			{
 				m_NormalizedClassDistribution = classProbs.clone();
-				weka.core.Utils.normalize(m_NormalizedClassDistribution);
+				Utility.normalize(m_NormalizedClassDistribution);
 			}
 		}
 
@@ -801,7 +801,7 @@ public class RandomForest implements Serializable
 		 */
 		protected double priorVal(double[][] dist) {
 
-			return weka.core.ContingencyTables.entropyOverColumns(dist);
+			return Utility.entropyOverColumns(dist);
 		}
 
 		/**
@@ -813,7 +813,9 @@ public class RandomForest implements Serializable
 		 */
 		protected double gain(double[][] dist, double priorVal) {
 
-			return priorVal - weka.core.ContingencyTables.entropyConditionedOnRows(dist);
+			return priorVal - Utility.entropyConditionedOnRows(dist);
 		}
 	}
+
+
 }

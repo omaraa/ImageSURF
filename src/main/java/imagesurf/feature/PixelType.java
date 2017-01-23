@@ -42,13 +42,11 @@ public enum PixelType {
 
 	public FeatureCalculator[] getAllFeatureCalculators(int minRadius, int maxRadius)
 	{
-		final int[] scales = IntStream.range(2, (int) (Math.log(maxRadius) / Math.log(2)+1))
+		final int[] scales = IntStream.range(1, (int) (Math.log(maxRadius) / Math.log(2)+1))
 				.map(i -> 1<<i)
 				.map(i -> i%2 == 0 ? i+1 : i)
-				.filter(i -> i>=minRadius && i<= maxRadius).toArray();
-
-		if(scales.length > 0 && scales[0] == 2)
-			scales[0] = 3;
+				.filter(i -> i>=minRadius && i<= maxRadius)
+				.toArray();
 
 		List<FeatureCalculator> f = new ArrayList<FeatureCalculator>();
 

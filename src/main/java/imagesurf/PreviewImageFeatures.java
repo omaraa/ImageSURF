@@ -40,7 +40,7 @@ import org.scijava.prefs.PrefService;
 import java.io.File;
 
 @Plugin(type = Command.class, headless = true,
-	menuPath = "Plugins>Segmentation>ImageSURF>Preview Image Features")
+	menuPath = "Plugins>Segmentation>ImageSURF>Advanced>Preview Image Features")
 public class PreviewImageFeatures implements Command{
 
 	@Parameter

@@ -17,11 +17,7 @@
 
 package imagesurf.feature.calculator;
 
-import ij.plugin.filter.RankFilters;
-import ij.process.FloatProcessor;
-
 import java.io.Serializable;
-import java.util.Arrays;
 import java.util.Map;
 
 public class Range implements FeatureCalculator, Serializable

@@ -440,7 +440,7 @@ public class TrainImageSurf implements Command{
 
 		if(numAttributes <= 0)
 		{
-			numAttributes = (int) (weka.core.Utils.log2(selectedFeatures.length - 1) + 1);
+			numAttributes = (int) (Utility.log2(selectedFeatures.length - 1) + 1);
 			if(numAttributes <= 0)
 				numAttributes = 1;
 		}

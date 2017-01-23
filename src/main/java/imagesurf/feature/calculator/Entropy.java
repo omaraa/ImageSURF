@@ -17,16 +17,13 @@
 
 package imagesurf.feature.calculator;
 
-import java.util.Arrays;
-import java.util.Map;
-
 import ij.gui.OvalRoi;
-import ij.plugin.filter.RankFilters;
 import ij.process.ByteProcessor;
-import ij.process.FloatProcessor;
 import ij.process.ShortProcessor;
 
 import java.io.Serializable;
+import java.util.Arrays;
+import java.util.Map;
 
 /**
  * Reimplementation of entropy filter from WEKA trainable segmentation 20170111
@@ -171,9 +168,9 @@ public class Entropy implements FeatureCalculator, Serializable
 
 		final int size = 2 * radius + 1;
 
-		for(int x=0; x<shortProcessor.getWidth(); x++)
+		for(int x=0; x<width; x++)
 		{
-			for(int y=0; y<shortProcessor.getHeight(); y++)
+			for(int y=0; y<height; y++)
 			{
 				final OvalRoi roi = new OvalRoi(x-radius, y-radius, size, size);
 				shortProcessor.setRoi( roi );

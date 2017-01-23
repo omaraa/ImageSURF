@@ -27,11 +27,11 @@ import org.scijava.prefs.PrefService;
 import org.scijava.widget.NumberWidget;
 
 /**
- * Runs the Plugins::Segmentation::ImageSURF::Settings::ImageSURF Classifier Settings dialog.
+ * Runs the Plugins::Segmentation::ImageSURF::Advanced::ImageSURF Classifier Settings dialog.
  *
  * @author Aidan O'Mara
  */
-@Plugin(type = OptionsPlugin.class, menuPath = "Plugins>Segmentation>ImageSURF>Settings>ImageSURF Classifier Settings")
+@Plugin(type = OptionsPlugin.class, menuPath = "Plugins>Segmentation>ImageSURF>Advanced>ImageSURF Classifier Settings")
 
 public class ImageSurfSettings extends OptionsPlugin {
 
