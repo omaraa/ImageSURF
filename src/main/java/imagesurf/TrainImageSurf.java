@@ -248,6 +248,19 @@ public class TrainImageSurf implements Command{
 		if(reader.getNumInstances() == 0)
 			throw new RuntimeException("No example pixels provided - cannot train classifier.");
 
+
+
+		short[] classes = reader.getClasses();
+		int background = 0;
+		int signal = 0;
+		for(short s : classes)
+			if(s == 0)
+				signal++;
+		else
+			background++;
+
+		System.out.println("Total examples: "+reader.getNumInstances()+"\tSignal examples: "+signal+"\tBackground examples: "+background);
+
 		RandomForest.ProgressListener randomForestProgressListener = (current, max, message) ->
 				statusService.showStatus(current, max, message);
 		randomForest.addProgressListener(randomForestProgressListener);
@@ -260,7 +273,6 @@ public class TrainImageSurf implements Command{
 		}
 
 		randomForest.removeprogressListener(randomForestProgressListener);
-
 
 
 		ImageSurfClassifier imageSurfClassifier = new ImageSurfClassifier(randomForest, selectedFeatures, pixelType);
