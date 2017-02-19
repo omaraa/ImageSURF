@@ -38,7 +38,7 @@ import java.util.stream.Collectors;
  *
  * @author Aidan O'Mara
  */
-@Plugin(type = OptionsPlugin.class, menuPath = "Plugins>Segmentation>ImageSURF>Advanced>ImageSURF Filter Selection")
+@Plugin(type = OptionsPlugin.class, menuPath = "Plugins>Segmentation>ImageSURF>Advanced>Select ImageSURF Filters")
 
 public class ImageSurfImageFilterSelection extends OptionsPlugin {
 

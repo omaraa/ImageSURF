@@ -44,6 +44,15 @@ public class Utility
 	 * */
 	private static final double MAX_INT_FOR_CACHE_PLUS_ONE = 10000;
 	private static final double[] INT_N_LOG_N_CACHE = new double[(int)MAX_INT_FOR_CACHE_PLUS_ONE];
+
+	static
+	{
+		for (int i = 1; i < MAX_INT_FOR_CACHE_PLUS_ONE; i++) {
+			double d = (double)i;
+			INT_N_LOG_N_CACHE[i] = d * Math.log(d);
+			}
+	}
+
 	/**
 	 * The natural logarithm of 2.
 	 */
