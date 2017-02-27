@@ -418,11 +418,9 @@ public class RandomForest implements Serializable
 
 					int maxClass = 0;
 
-					for(int c=0;c<sums.length;c++)
-						if(sums[c] > maxClass)
-						{
+					for(int c=1;c<sums.length;c++)
+						if(sums[c] > sums[maxClass])
 							maxClass = c;
-						}
 
 					classes[index] = maxClass;
 				}
