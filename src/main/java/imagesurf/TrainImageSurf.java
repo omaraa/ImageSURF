@@ -105,27 +105,6 @@ public class TrainImageSurf implements Command{
 			description = "Pixels in the annotation files with this color will be used as background examples.")
 	private ColorRGB backgroundLabelColor = ColorRGB.fromHTMLColor("#0000ff");
 
-	@Parameter(visibility = ItemVisibility.MESSAGE)
-	private final String labelImageFeatures = "----- Training Image Features -----";
-
-	@Parameter(label = "Minimum feature radius",
-			style = NumberWidget.SCROLL_BAR_STYLE, min = "0", max = "257",
-			type = ItemIO.INPUT,
-			callback = "onRadiiChanged",
-			description = "The minimum radius (in pixels) to be considered for feature calculation.")
-	private int minFeatureRadius = 0;
-
-	@Parameter(label = "Maximum feature radius",
-			style = NumberWidget.SCROLL_BAR_STYLE, min = "0", max = "257",
-			type = ItemIO.INPUT,
-			callback = "onRadiiChanged",
-			description = "The maximum radius (in pixels) to be considered for feature calculation. WARNING: Some " +
-					"large radius feature calculations may require substantial computing time.")
-	private int maxFeatureRadius = 35;
-
-	@Parameter(label = "Selected feature radii:", initializer = "onRadiiChanged", visibility = ItemVisibility.MESSAGE)
-	private String selectedRadii;
-
 	@Parameter(label = "Save calculated features", type = ItemIO.INPUT,
 			description = "If checked, calculated images features will be saved as a \".features\" file in the input " +
 					"images directory. Saving image features can drastically reduce the time required to re-train and " +
@@ -138,13 +117,6 @@ public class TrainImageSurf implements Command{
 	@Parameter(label = "Classifier output path", type = ItemIO.INPUT, style= FileWidget.SAVE_STYLE,
 			description = "Where the imagesurf.classifier will be saved. A \".imagesurf\" file extension is recommended.")
 	private File classifierOutputPath = new File(System.getProperty("user.home"), "ImageSURF.imagesurf");
-
-	protected void initialiseValues()
-	{
-		minFeatureRadius = prefService.getInt(ImageSurfSettings.IMAGESURF_MIN_FEATURE_RADIUS, ImageSurfSettings.DEFAULT_MIN_FEATURE_RADIUS);
-		maxFeatureRadius = prefService.getInt(ImageSurfSettings.IMAGESURF_MAX_FEATURE_RADIUS, ImageSurfSettings.DEFAULT_MAX_FEATURE_RADIUS);
-		onRadiiChanged();
-	}
 
 	@Parameter(label="After training",
 			choices={AFTER_TRAINING_OPTION_NOTHING,AFTER_TRAINING_OPTION_DISPLAY,AFTER_TRAINING_OPTION_SAVE},
@@ -167,23 +139,6 @@ public class TrainImageSurf implements Command{
 	File featuresPath;
 	File[] featureFiles;
 
-	protected void onRadiiChanged() {
-
-		selectedFeatures = ImageSurfImageFilterSelection.getFeatureCalculators(PixelType.GRAY_8_BIT, minFeatureRadius, maxFeatureRadius, prefService);
-
-		List<String> radii = Arrays.stream(selectedFeatures)
-						.map((f) -> f.getRadius())
-						.distinct()
-						.sorted()
-						.map(Object::toString)
-						.collect(Collectors.toCollection(ArrayList::new));
-
-		selectedRadii = String.join(", ", radii);
-
-		if(selectedRadii.isEmpty())
-			selectedRadii = "NO FEATURE RADII SELECTED";
-	}
-
 	public static void main(final String... args) throws Exception {
 		// create the ImageJ application context with all available services
 		final ImageJ ij = net.imagej.Main.launch(args);
@@ -194,11 +149,6 @@ public class TrainImageSurf implements Command{
 	@Override
 	public void run()
 	{
-		onRadiiChanged();
-
-		prefService.put(ImageSurfSettings.IMAGESURF_MIN_FEATURE_RADIUS, minFeatureRadius);
-		prefService.put(ImageSurfSettings.IMAGESURF_MAX_FEATURE_RADIUS, maxFeatureRadius);
-
 		if(imagePattern == null)
 			imagePattern = "";
 
@@ -270,6 +220,35 @@ public class TrainImageSurf implements Command{
 		if(maxFeatures < selectedFeatures.length && maxFeatures > 0)
 		{
 			selectFeatures(maxFeatures, reader, trainingExamples);
+		}
+
+		try
+		{
+			int[] verificationClasses = randomForest.classForInstances(reader);
+			int[] verificationClassCount = new int[2];
+
+			int[] classCount = new int[2];
+
+
+			int correct = 0;
+			for(int i = 0;i<verificationClasses.length;i++)
+			{
+				if (verificationClasses[i] == classes[i])
+					correct++;
+
+				verificationClassCount[verificationClasses[i]]++;
+				classCount[classes[i]]++;
+			}
+
+			log.info("Training 0: "+classCount[0]+"\t1: "+classCount[1]);
+
+			log.info("Verification 0: "+verificationClassCount[0]+"\t1: "+verificationClassCount[1]);
+
+			log.info("Segmenter classifies "+correct+"/"+verificationClasses.length+" "+(((double)correct)/verificationClasses.length)*100+"%) of the training pixels correctly.");
+		}
+		catch (InterruptedException e)
+		{
+			e.printStackTrace();
 		}
 
 		randomForest.removeprogressListener(randomForestProgressListener);
@@ -549,6 +528,7 @@ public class TrainImageSurf implements Command{
 		}
 		for(int i = 0; i < maxFeatures; i++)
 			optimisedTrainingExamples[i] = trainingExamples[rankedFeatures[i]];
+
 		//Add example classes
 		optimisedTrainingExamples[maxFeatures] = trainingExamples[trainingExamples.length-1];
 
@@ -578,6 +558,9 @@ public class TrainImageSurf implements Command{
 		int totalLabelledPixels = Utility.sum(numLabelledPixels);
 		Collection<Object[]> examples = new ArrayList<>();
 
+		if(totalLabelledPixels == 0)
+			throw new RuntimeException("No labels found in label files");
+
 		final int[] examplePixelIndices = selectExamplePixels(totalLabelledPixels);
 
 		int currentImageFirstExampleIndex = 0;
@@ -599,6 +582,7 @@ public class TrainImageSurf implements Command{
 			final ImageFeatures imageFeatures;
 			if (featureFiles[imageIndex] == null || !featureFiles[imageIndex].exists())
 			{
+				System.out.println("Reading image " + (currentImageIndex + 1) + "/" + numImages);
 				imageFeatures = new ImageFeatures(image);
 			}
 			else
@@ -608,14 +592,18 @@ public class TrainImageSurf implements Command{
 				imageFeatures = ImageFeatures.deserialize(featureFiles[imageIndex].toPath());
 			}
 
-			if (imageIndex == 0)
+			if (imageIndex == 0 || pixelType == null)
 			{
 				pixelType = imageFeatures.pixelType;
-				selectedFeatures = ImageSurfImageFilterSelection.getFeatureCalculators(pixelType, minFeatureRadius, maxFeatureRadius, prefService);
+				selectedFeatures = ImageSurfImageFilterSelection.getFeatureCalculators(
+						pixelType,
+						prefService.getInt(ImageSurfSettings.IMAGESURF_MIN_FEATURE_RADIUS, ImageSurfSettings.DEFAULT_MIN_FEATURE_RADIUS),
+						prefService.getInt(ImageSurfSettings.IMAGESURF_MAX_FEATURE_RADIUS, ImageSurfSettings.DEFAULT_MAX_FEATURE_RADIUS),
+						prefService);
 			}
 
 			if (imageFeatures.pixelType != pixelType)
-				throw new RuntimeException("Training images must all be either 8 or 16 bit greyscale format.");
+				throw new RuntimeException("Training images must all be either 8 or 16 bit greyscale format. "+featureFiles[imageIndex].getName()+" is "+imageFeatures.pixelType+", expected "+pixelType);
 
 			ImageFeatures.ProgressListener progressListener = new ImageFeatures.ProgressListener()
 			{

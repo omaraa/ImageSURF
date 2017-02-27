@@ -150,6 +150,7 @@ public class ImageSurfImageFilterSelection extends OptionsPlugin {
 		FeatureCalculator[] selectedFeatures = PixelType.GRAY_8_BIT.getAllFeatureCalculators(minFeatureRadius, maxFeatureRadius);
 
 		List<String> radii = Arrays.stream(selectedFeatures)
+				.filter(f -> !f.equals(Identity.get()))
 				.map((f) -> f.getRadius())
 				.distinct()
 				.sorted()
