@@ -281,7 +281,7 @@ public class TrainImageSurf implements Command{
 		if(imageSurfDataPath.exists())
 			IJ.showMessage("ImageSURF training data files " +
 					(AFTER_TRAINING_OPTION_SAVE.equals(afterTraining) ?  "and segmented training images " : "") +
-					"have been created in the folder\n\n"+classifierOutputPath.getAbsolutePath()+"\n\nIt is recommended " +
+					"have been created in the folder\n\n"+imageSurfDataPath.getAbsolutePath()+"\n\nIt is recommended " +
 					"that you delete these files after the imagesurf.classifier has been finalised to save disk space."
 			);
 	}
