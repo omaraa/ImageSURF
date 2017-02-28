@@ -165,6 +165,12 @@ public class TrainImageSurf implements Command{
 		if(saveCalculatedFeatures)
 			featuresPath.mkdirs();
 
+		selectedFeatures = ImageSurfImageFilterSelection.getFeatureCalculators(
+				PixelType.GRAY_8_BIT,
+				prefService.getInt(ImageSurfSettings.IMAGESURF_MIN_FEATURE_RADIUS, ImageSurfSettings.DEFAULT_MIN_FEATURE_RADIUS),
+				prefService.getInt(ImageSurfSettings.IMAGESURF_MAX_FEATURE_RADIUS, ImageSurfSettings.DEFAULT_MAX_FEATURE_RADIUS),
+				prefService);
+
 		if(selectedFeatures == null || selectedFeatures.length == 0)
 			throw new RuntimeException("Cannot build imagesurf.classifier with no features.");
 
