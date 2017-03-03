@@ -24,6 +24,7 @@ import imagesurf.feature.ImageFeatures;
 import ij.ImagePlus;
 import ij.ImageStack;
 import ij.Prefs;
+import imagesurf.feature.PixelType;
 import imagesurf.feature.calculator.FeatureCalculator;
 import org.scijava.app.StatusService;
 
@@ -233,7 +234,7 @@ public class Utility
 		return outputStack;
 	}
 
-	public static ImageStack calculateImageFeatures(FeatureCalculator[] featureCalculators, ImageFeatures features, StatusService statusService) throws ExecutionException, InterruptedException
+	public static ImageStack calculateImageFeatures(FeatureCalculator[] featureCalculators, ImageFeatures features, StatusService statusService, PixelType pixelType) throws ExecutionException, InterruptedException
 	{
 
 		final ImageStack outputStack = new ImageStack(features.width, features.height);
@@ -256,7 +257,19 @@ public class Utility
 
 				for(FeatureCalculator f : featureCalculators)
 				{
-					outputStack.addSlice(f.getDescription(),((short[][]) features.getFeaturePixels(0,0,0,f))[0]);
+					switch (pixelType)
+					{
+
+						case GRAY_8_BIT:
+							outputStack.addSlice(f.getDescription(),((byte[][]) features.getFeaturePixels(0,0,0,f))[0]);
+							break;
+						case GRAY_16_BIT:
+							outputStack.addSlice(f.getDescription(),((short[][]) features.getFeaturePixels(0,0,0,f))[0]);
+							break;
+						default:
+							throw new RuntimeException("Unsupported pixel type: "+pixelType);
+					}
+
 				}
 			}
 
