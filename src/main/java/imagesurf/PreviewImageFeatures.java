@@ -87,7 +87,9 @@ public class PreviewImageFeatures implements Command{
 			if(featureCalculators.length == 0)
 				throw new RuntimeException("No image filters have been selected.");
 
-			image.setStack(Utility.calculateImageFeatures(featureCalculators, features, statusService));
+			PixelType pixelType = Utility.getPixelType(image);
+
+			image.setStack(Utility.calculateImageFeatures(featureCalculators, features, statusService, pixelType));
 		}
 		catch (Exception e)
 		{

@@ -462,4 +462,26 @@ public class Utility
 
 		return (a - b > SMALL);
 	}
+
+	public static PixelType getPixelType(ImagePlus imagePlus)
+	{
+		switch (imagePlus.getType())
+		{
+			case ImagePlus.GRAY8:
+				return PixelType.GRAY_8_BIT;
+
+			case ImagePlus.GRAY16:
+				return PixelType.GRAY_16_BIT;
+
+			case ImagePlus.GRAY32:
+				throw new IllegalArgumentException("32-bit grayscale images are not yet supported.");
+
+			case ImagePlus.COLOR_256:
+			case ImagePlus.COLOR_RGB:
+				throw new IllegalArgumentException("Color images are not yet supported.");
+
+			default:
+				throw new IllegalArgumentException("Image type not supported.");
+		}
+	}
 }
