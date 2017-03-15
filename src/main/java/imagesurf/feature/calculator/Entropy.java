@@ -85,21 +85,21 @@ public class Entropy implements FeatureCalculator, Serializable
 			max = tempMax;
 		}
 
-		final ByteProcessor bp = new ByteProcessor(width, height, pixels);
-		bp.setHistogramRange( 0, numBins-1 );
-		bp.setHistogramSize( numBins);
+		final ByteProcessor byteProcessor = new ByteProcessor(width, height, pixels);
+		byteProcessor.setHistogramRange( 0, numBins-1 );
+		byteProcessor.setHistogramSize( numBins);
 
 		byte[] result = new byte[width*height];
 
 		final int size = 2 * radius + 1;
 
-		for(int x=0; x<bp.getWidth(); x++)
+		for(int x=0; x<width; x++)
 		{
-			for(int y=0; y<bp.getHeight(); y++)
+			for(int y=0; y<height; y++)
 			{
 				final OvalRoi roi = new OvalRoi(x-radius, y-radius, size, size);
-				bp.setRoi( roi );
-				final int[] histogram = bp.getHistogram(); // Get histogram from the ROI
+				byteProcessor.setRoi( roi );
+				final int[] histogram = byteProcessor.getHistogram(); // Get histogram from the ROI
 
 				double total = 0;
 				for (int k = min ; k <= max; k++ )
@@ -118,7 +118,7 @@ public class Entropy implements FeatureCalculator, Serializable
 				//entropy should be a value between 0.0 and 8.0, so scale to fit byte range of 0-255
 				entropy = Math.floor(entropy * ((double)(numBins)/8.0));
 
-				result[width*y] = (byte) (0xff & ((int) entropy));
+				result[width*y+x] = (byte) (0xff & ((int) entropy));
 			}
 		}
 
