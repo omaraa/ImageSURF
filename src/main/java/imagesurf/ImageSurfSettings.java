@@ -24,6 +24,7 @@ import org.scijava.options.OptionsPlugin;
 import org.scijava.plugin.Parameter;
 import org.scijava.plugin.Plugin;
 import org.scijava.prefs.PrefService;
+import org.scijava.ui.swing.options.OptionsLookAndFeel;
 import org.scijava.widget.NumberWidget;
 
 /**
@@ -74,7 +75,7 @@ public class ImageSurfSettings extends OptionsPlugin {
 	public static final String IMAGESURF_USE_DIFFERENCE_FROM_GAUSSIAN = "ImageSURF use difference from gaussian";
 
 	@Parameter
-	private PrefService prefService;
+	private PrefService preferences;
 
 	@Parameter(label = "Number of trees", type = ItemIO.INPUT,
 			style = NumberWidget.SPINNER_STYLE, min = "1", initializer = "initialiseValues",
@@ -131,25 +132,27 @@ public class ImageSurfSettings extends OptionsPlugin {
 
 	protected void initialiseValues()
 	{
-		numTrees = prefService.getInt(ImageSurfSettings.IMAGESURF_NUM_TREES, ImageSurfSettings.DEFAULT_NUM_TREES);
-		treeDepth = prefService.getInt(ImageSurfSettings.IMAGESURF_TREE_DEPTH, ImageSurfSettings.DEFAULT_TREE_DEPTH);
-		numAttributes = prefService.getInt(ImageSurfSettings.IMAGESURF_NUM_ATTRIBUTES, ImageSurfSettings.DEFAULT_NUM_ATTRIBUTES);
-		bagSize = prefService.getInt(ImageSurfSettings.IMAGESURF_BAG_SIZE, ImageSurfSettings.DEFAULT_BAG_SIZE);
-		maxFeatures = prefService.getInt(ImageSurfSettings.IMAGESURF_MAX_FEATURES, ImageSurfSettings.DEFAULT_MAX_FEATURES);
-		randomSeedString= prefService.get(ImageSurfSettings.IMAGESURF_RANDOM_SEED, null);
-		examplePortion = prefService.getInt(ImageSurfSettings.IMAGESURF_EXAMPLE_PORTION, ImageSurfSettings.DEFAULT_EXAMPLE_PORTION);
+		numTrees = preferences.getInt(ImageSurfSettings.IMAGESURF_NUM_TREES, ImageSurfSettings.DEFAULT_NUM_TREES);
+		treeDepth = preferences.getInt(ImageSurfSettings.IMAGESURF_TREE_DEPTH, ImageSurfSettings.DEFAULT_TREE_DEPTH);
+		numAttributes = preferences.getInt(ImageSurfSettings.IMAGESURF_NUM_ATTRIBUTES, ImageSurfSettings.DEFAULT_NUM_ATTRIBUTES);
+		bagSize = preferences.getInt(ImageSurfSettings.IMAGESURF_BAG_SIZE, ImageSurfSettings.DEFAULT_BAG_SIZE);
+		maxFeatures = preferences.getInt(ImageSurfSettings.IMAGESURF_MAX_FEATURES, ImageSurfSettings.DEFAULT_MAX_FEATURES);
+		randomSeedString= preferences.get(ImageSurfSettings.IMAGESURF_RANDOM_SEED, null);
+		examplePortion = preferences.getInt(ImageSurfSettings.IMAGESURF_EXAMPLE_PORTION, ImageSurfSettings.DEFAULT_EXAMPLE_PORTION);
 	}
 
 	@Override
 	public void run()
 	{
-		prefService.put(IMAGESURF_BAG_SIZE, bagSize);
-		prefService.put(IMAGESURF_EXAMPLE_PORTION, examplePortion);
-		prefService.put(IMAGESURF_TREE_DEPTH, treeDepth);
-		prefService.put(IMAGESURF_NUM_TREES, numTrees);
-		prefService.put(IMAGESURF_NUM_ATTRIBUTES, numAttributes);
-		prefService.put(IMAGESURF_RANDOM_SEED, randomSeedString == null ? "" : randomSeedString);
-		prefService.put(IMAGESURF_MAX_FEATURES, maxFeatures);
+		preferences.put(IMAGESURF_BAG_SIZE, bagSize);
+		preferences.put(IMAGESURF_EXAMPLE_PORTION, examplePortion);
+		preferences.put(IMAGESURF_TREE_DEPTH, treeDepth);
+		preferences.put(IMAGESURF_NUM_TREES, numTrees);
+		preferences.put(IMAGESURF_NUM_ATTRIBUTES, numAttributes);
+		preferences.put(IMAGESURF_RANDOM_SEED, randomSeedString == null ? "" : randomSeedString);
+		preferences.put(IMAGESURF_MAX_FEATURES, maxFeatures);
+
+		super.run();
 	}
 
 	public static void main(final String... args) throws Exception {

@@ -63,8 +63,8 @@ public enum PixelType {
 			f.add(new DifferenceOf(Identity.get(),new Mean(scale)));
 			f.add(new DifferenceOf(Identity.get(),new Gaussian(scale)));
 			f.add(new DifferenceOf(Identity.get(),new Median(scale)));
-			f.add(new DifferenceOf(Identity.get(),new Min(scale), 2.0, 0));
-			f.add(new DifferenceOf(Identity.get(), new Max(scale), 2.0, getMax()));
+			f.add(new DifferenceOf(Identity.get(),new Min(scale), 2.0, getMax()/2));
+			f.add(new DifferenceOf(Identity.get(), new Max(scale), 2.0, getMax()/2));
 
 			f.add(new Range(scale));
 			f.add(new Entropy(scale));

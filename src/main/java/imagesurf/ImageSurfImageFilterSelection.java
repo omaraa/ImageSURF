@@ -22,10 +22,12 @@ import imagesurf.feature.calculator.*;
 import net.imagej.ImageJ;
 import org.scijava.ItemIO;
 import org.scijava.ItemVisibility;
+import org.scijava.log.LogService;
 import org.scijava.options.OptionsPlugin;
 import org.scijava.plugin.Parameter;
 import org.scijava.plugin.Plugin;
 import org.scijava.prefs.PrefService;
+import org.scijava.ui.UserInterface;
 import org.scijava.widget.NumberWidget;
 
 import java.util.ArrayList;
@@ -43,7 +45,7 @@ import java.util.stream.Collectors;
 public class ImageSurfImageFilterSelection extends OptionsPlugin {
 
 	@Parameter
-	private PrefService prefService;
+	private PrefService preferences;
 
 	@Parameter(label = "Identity", type = ItemIO.INPUT,	description = "The original unfiltered image.")
 	private boolean identity = true;
@@ -122,27 +124,28 @@ public class ImageSurfImageFilterSelection extends OptionsPlugin {
 	@Override
 	public void run()
 	{
-		prefService.put(ImageSurfSettings.IMAGESURF_MIN_FEATURE_RADIUS, minFeatureRadius);
-		prefService.put(ImageSurfSettings.IMAGESURF_MAX_FEATURE_RADIUS, maxFeatureRadius);
+		preferences.put(ImageSurfSettings.IMAGESURF_MIN_FEATURE_RADIUS, minFeatureRadius);
+		preferences.put(ImageSurfSettings.IMAGESURF_MAX_FEATURE_RADIUS, maxFeatureRadius);
 
-		prefService.put(ImageSurfSettings.IMAGESURF_USE_IDENTITY, identity);
-		prefService.put(ImageSurfSettings.IMAGESURF_USE_MEAN, mean);
-		prefService.put(ImageSurfSettings.IMAGESURF_USE_MIN, min);
-		prefService.put(ImageSurfSettings.IMAGESURF_USE_MAX, max);
-		prefService.put(ImageSurfSettings.IMAGESURF_USE_MEDIAN, median);
-		prefService.put(ImageSurfSettings.IMAGESURF_USE_STANDARD_DEVIATION, standardDeviation);
-		prefService.put(ImageSurfSettings.IMAGESURF_USE_RANGE, range);
-		prefService.put(ImageSurfSettings.IMAGESURF_USE_GAUSSIAN, gaussian);
-		prefService.put(ImageSurfSettings.IMAGESURF_USE_DIFFERENCE_OF_GAUSSIANS, differenceOfGaussians);
-		prefService.put(ImageSurfSettings.IMAGESURF_USE_DIFFERENCE_FROM_MEAN, differenceFromMean);
-		prefService.put(ImageSurfSettings.IMAGESURF_USE_DIFFERENCE_FROM_MIN, differenceFromMin);
-		prefService.put(ImageSurfSettings.IMAGESURF_USE_DIFFERENCE_FROM_MAX, differenceFromMax);
-		prefService.put(ImageSurfSettings.IMAGESURF_USE_DIFFERENCE_FROM_MEDIAN, differenceFromMedian);
-		prefService.put(ImageSurfSettings.IMAGESURF_USE_DIFFERENCE_FROM_GAUSSIAN, differenceFromGaussian);
-		prefService.put(ImageSurfSettings.IMAGESURF_USE_LOCAL_INTENSITY, localIntensity);
-		prefService.put(ImageSurfSettings.IMAGESURF_USE_ENTROPY, entropy);
-		prefService.put(ImageSurfSettings.IMAGESURF_USE_DIFFERENCE_OF_ENTROPY, differenceOfEntropy);
+		preferences.put(ImageSurfSettings.IMAGESURF_USE_IDENTITY, identity);
+		preferences.put(ImageSurfSettings.IMAGESURF_USE_MEAN, mean);
+		preferences.put(ImageSurfSettings.IMAGESURF_USE_MIN, min);
+		preferences.put(ImageSurfSettings.IMAGESURF_USE_MAX, max);
+		preferences.put(ImageSurfSettings.IMAGESURF_USE_MEDIAN, median);
+		preferences.put(ImageSurfSettings.IMAGESURF_USE_STANDARD_DEVIATION, standardDeviation);
+		preferences.put(ImageSurfSettings.IMAGESURF_USE_RANGE, range);
+		preferences.put(ImageSurfSettings.IMAGESURF_USE_GAUSSIAN, gaussian);
+		preferences.put(ImageSurfSettings.IMAGESURF_USE_DIFFERENCE_OF_GAUSSIANS, differenceOfGaussians);
+		preferences.put(ImageSurfSettings.IMAGESURF_USE_DIFFERENCE_FROM_MEAN, differenceFromMean);
+		preferences.put(ImageSurfSettings.IMAGESURF_USE_DIFFERENCE_FROM_MIN, differenceFromMin);
+		preferences.put(ImageSurfSettings.IMAGESURF_USE_DIFFERENCE_FROM_MAX, differenceFromMax);
+		preferences.put(ImageSurfSettings.IMAGESURF_USE_DIFFERENCE_FROM_MEDIAN, differenceFromMedian);
+		preferences.put(ImageSurfSettings.IMAGESURF_USE_DIFFERENCE_FROM_GAUSSIAN, differenceFromGaussian);
+		preferences.put(ImageSurfSettings.IMAGESURF_USE_LOCAL_INTENSITY, localIntensity);
+		preferences.put(ImageSurfSettings.IMAGESURF_USE_ENTROPY, entropy);
+		preferences.put(ImageSurfSettings.IMAGESURF_USE_DIFFERENCE_OF_ENTROPY, differenceOfEntropy);
 
+		super.run();
 	}
 
 	protected void onRadiiChanged() {
