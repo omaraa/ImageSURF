@@ -130,7 +130,7 @@ public class ImageFeatures implements Serializable
 		this.numFrames = numFrames;
 		this.pixelsPerChannel = width * height;
 		this.pixelsPerSlice = pixelsPerChannel * numChannels;
-		this.pixelsPerFrame = pixelsPerSlice * numFrames;
+		this.pixelsPerFrame = pixelsPerSlice * numSlices;
 
 		if(width<0 || height <0 || numChannels<0 || numSlices<0 || numFrames<0)
 			throw new IllegalArgumentException("Image dimensions must be positive values");
