@@ -57,14 +57,14 @@ public class BatchApplyImageSurf implements Command{
 	@Parameter
 	private DatasetIOService datasetIOService;
 
-	@Parameter(label = "ImageSURF Classifier Path", type = ItemIO.INPUT,
-			description = "ImageSURF imagesurf.classifier file. If you have not yet trained a imagesurf.classifier, train it using the \"Train ImageSURF Classifier command")
+	@Parameter(label = "ImageSURF Classifier", type = ItemIO.INPUT,
+			description = "ImageSURF classifier file. If you have not yet trained a classifier, train it using the \"Train ImageSURF Classifier\" command.")
 	private File classifierFile;
 
-	@Parameter(label = "Input images path",
+	@Parameter(label = "Input images folder",
 			type = ItemIO.INPUT,
 			style= FileWidget.DIRECTORY_STYLE,
-			description = "Folder of images to segment. ImageSURF will attempt to segment all images in this folder, unless a file name pattern is set below")
+			description = "Folder of images to segment. ImageSURF will attempt to segment all images in this folder, unless a file name pattern is set below.")
 	private File imagesPath;
 
 	@Parameter(label = "Input image file names contain",

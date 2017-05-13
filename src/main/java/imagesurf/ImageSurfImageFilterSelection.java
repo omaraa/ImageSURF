@@ -22,6 +22,7 @@ import imagesurf.feature.calculator.*;
 import net.imagej.ImageJ;
 import org.scijava.ItemIO;
 import org.scijava.ItemVisibility;
+import org.scijava.command.Command;
 import org.scijava.log.LogService;
 import org.scijava.options.OptionsPlugin;
 import org.scijava.plugin.Parameter;
@@ -40,9 +41,10 @@ import java.util.stream.Collectors;
  *
  * @author Aidan O'Mara
  */
-@Plugin(type = OptionsPlugin.class, menuPath = "Plugins>Segmentation>ImageSURF>Advanced>Select ImageSURF Filters")
+@Plugin(type = Command.class, menuPath = "Plugins>Segmentation>ImageSURF>Advanced>Select ImageSURF Filters")
 
-public class ImageSurfImageFilterSelection extends OptionsPlugin {
+public class ImageSurfImageFilterSelection implements Command
+{
 
 	@Parameter
 	private PrefService preferences;
@@ -60,7 +62,7 @@ public class ImageSurfImageFilterSelection extends OptionsPlugin {
 	private boolean max = true;
 
 	@Parameter(label = "Median", type = ItemIO.INPUT,	description = "The median pixel value in the near neighborhood of the target pixel. " +
-			"WARNING: The median filter is computationally expensive and may substantially increase the processing time, especially when calculated with a large radius")
+			"WARNING: The median filter is computationally expensive and may substantially increase the processing time, especially when calculated with a large radius.")
 	private boolean median = false;
 
 	@Parameter(label = "Standard deviation", type = ItemIO.INPUT,	description = "The standard deviation of pixel values in the near neighborhood of the target pixel.")
@@ -85,7 +87,7 @@ public class ImageSurfImageFilterSelection extends OptionsPlugin {
 	private boolean differenceFromMax = true;
 
 	@Parameter(label = "Difference from median", type = ItemIO.INPUT,	description = "Difference between the target pixel value and the median pixel value in the near neighborhood of the target pixel. " +
-			"WARNING: The median filter is computationally expensive and may substantially increase the processing time, especially when calculated with a large radius")
+			"WARNING: The median filter is computationally expensive and may substantially increase the processing time, especially when calculated with a large radius.")
 	private boolean differenceFromMedian = false;
 
 	@Parameter(label = "Difference from Gaussian", type = ItemIO.INPUT,	description = "Difference between the target pixel value and the Gaussian filtered pixel value in the near neighborhood of the target pixel.")
@@ -145,7 +147,6 @@ public class ImageSurfImageFilterSelection extends OptionsPlugin {
 		preferences.put(ImageSurfSettings.IMAGESURF_USE_ENTROPY, entropy);
 		preferences.put(ImageSurfSettings.IMAGESURF_USE_DIFFERENCE_OF_ENTROPY, differenceOfEntropy);
 
-		super.run();
 	}
 
 	protected void onRadiiChanged() {

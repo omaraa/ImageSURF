@@ -28,6 +28,7 @@ import net.imagej.DatasetService;
 import net.imagej.ImageJ;
 
 import org.scijava.ItemIO;
+import org.scijava.ItemVisibility;
 import org.scijava.app.StatusService;
 import org.scijava.command.Command;
 import org.scijava.log.LogService;
@@ -53,8 +54,11 @@ public class ApplyImageSurf implements Command{
 	@Parameter
 	private DatasetIOService datasetIOService;
 
-	@Parameter(label = "ImageSURF imagesurf.classifier", type = ItemIO.INPUT,
-	description = "ImageSURF imagesurf.classifier file. If you have not yet trained a imagesurf.classifier, train it using the \"Train ImageSURF Classifier command")
+	@Parameter(visibility = ItemVisibility.MESSAGE)
+	private final String labelTrainingSet = "----- Classifier -----";
+
+	@Parameter(label = "ImageSURF classifier", type = ItemIO.INPUT,
+	description = "ImageSURF classifier file. If you have not yet trained a classifier, train it using the \"Train ImageSURF Classifier command")
 	private File classifierFile;
 
 	@Parameter(label = "Input image", type = ItemIO.BOTH)

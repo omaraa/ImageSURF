@@ -115,7 +115,7 @@ public class TrainImageSurf implements Command{
 	private final String labelClassifier = "----- Classifier (See ImageSURF Classifier Settings for options) -----";
 
 	@Parameter(label = "Classifier output path", type = ItemIO.INPUT, style= FileWidget.SAVE_STYLE,
-			description = "Where the imagesurf.classifier will be saved. A \".imagesurf\" file extension is recommended.")
+			description = "Where the classifier will be saved. A \".imagesurf\" file extension is recommended.")
 	private File classifierOutputPath = new File(System.getProperty("user.home"), "ImageSURF.imagesurf");
 
 	@Parameter(label="After training",

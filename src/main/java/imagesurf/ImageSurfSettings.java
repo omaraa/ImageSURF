@@ -20,6 +20,7 @@ package imagesurf;
 import imagesurf.feature.PixelType;
 import net.imagej.ImageJ;
 import org.scijava.ItemIO;
+import org.scijava.command.Command;
 import org.scijava.options.OptionsPlugin;
 import org.scijava.plugin.Parameter;
 import org.scijava.plugin.Plugin;
@@ -32,9 +33,10 @@ import org.scijava.widget.NumberWidget;
  *
  * @author Aidan O'Mara
  */
-@Plugin(type = OptionsPlugin.class, menuPath = "Plugins>Segmentation>ImageSURF>Advanced>ImageSURF Classifier Settings")
+@Plugin(type = Command.class, menuPath = "Plugins>Segmentation>ImageSURF>Advanced>ImageSURF Classifier Settings")
 
-public class ImageSurfSettings extends OptionsPlugin {
+public class ImageSurfSettings implements Command
+{
 
 	public static final int DEFAULT_BAG_SIZE = 30;
 	public static final int DEFAULT_EXAMPLE_PORTION = 100;
@@ -79,13 +81,13 @@ public class ImageSurfSettings extends OptionsPlugin {
 
 	@Parameter(label = "Number of trees", type = ItemIO.INPUT,
 			style = NumberWidget.SPINNER_STYLE, min = "1", initializer = "initialiseValues",
-			description = "The number of random trees to build for the imagesurf.classifier. More trees will result in a" +
-					"more robust imagesurf.classifier, but require more computing time to build.")
+			description = "The number of random trees to build for the classifier. More trees will result in a" +
+					"more robust classifier, but require more computing time to build.")
 	private int numTrees = DEFAULT_NUM_TREES;
 
 	@Parameter(label = "Maximum tree depth", type = ItemIO.INPUT,
 			style = NumberWidget.SPINNER_STYLE, min = "0", initializer = "initialiseValues",
-			description = "The maximum depth of random trees in the imagesurf.classifier. Deeper trees can capture more subtle " +
+			description = "The maximum depth of random trees in the classifier. Deeper trees can capture more subtle " +
 					"information, but are more likely to over-fit to the training input.")
 	private int treeDepth = DEFAULT_TREE_DEPTH;
 
@@ -103,7 +105,7 @@ public class ImageSurfSettings extends OptionsPlugin {
 			style = NumberWidget.SCROLL_BAR_STYLE, min = "1", max = "100", initializer = "initialiseValues",
 			description = "The bag size (number of examples) to use as training input to each random tree in the " +
 					"imagesurf.classifier. Smaller bag sizes reduce the likelihood of over-fitting to the training set, but may " +
-					"also reduce the imagesurf.classifier accuracy")
+					"also reduce the iclassifier accuracy.")
 	private int bagSize = DEFAULT_BAG_SIZE;
 
 	@Parameter(label = "Training examples to consider (%)", type = ItemIO.INPUT,
@@ -117,11 +119,11 @@ public class ImageSurfSettings extends OptionsPlugin {
 	@Parameter(label = "Maximum features", type = ItemIO.INPUT,
 			style = NumberWidget.SPINNER_STYLE, min = "0", callback = "onMaxFeaturesChanged",
 			initializer = "initialiseValues",
-			description = "The maximum number of features to use in the ImageSURF imagesurf.classifier. If the selected value is " +
-					"less than the maximum number of features, a imagesurf.classifier will be trained with all selected features, " +
-					"the importance of each imagesurf.feature calculated and only the most important features used to re-train " +
-					"the imagesurf.classifier. Less features will result in less computation to calculate the features when " +
-					"applying the ImageSURF imagesurf.classifier, but too few features may result in unsatisfactory classification " +
+			description = "The maximum number of features to use in the ImageSURF classifier. If the selected value is " +
+					"less than the maximum number of features, a classifier will be trained with all selected features, " +
+					"the importance of each feature calculated and only the most important features used to re-train " +
+					"the classifier. Less features will result in less computation to calculate the features when " +
+					"applying the ImageSURF classifier, but too few features may result in unsatisfactory classification " +
 					"accuracy. If 0 is selected, all features will be used.")
 	private int maxFeatures = DEFAULT_MAX_FEATURES;
 
@@ -151,8 +153,6 @@ public class ImageSurfSettings extends OptionsPlugin {
 		preferences.put(IMAGESURF_NUM_ATTRIBUTES, numAttributes);
 		preferences.put(IMAGESURF_RANDOM_SEED, randomSeedString == null ? "" : randomSeedString);
 		preferences.put(IMAGESURF_MAX_FEATURES, maxFeatures);
-
-		super.run();
 	}
 
 	public static void main(final String... args) throws Exception {
