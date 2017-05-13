@@ -37,7 +37,8 @@ public class RandomForest implements Serializable
 	/**
 	 * The number of attributes considered for a split.
 	 */
-	protected int m_KValue = 0;
+	private int numAttributes = 0;
+
 	/**
 	 * The random seed to use.
 	 */
@@ -51,7 +52,6 @@ public class RandomForest implements Serializable
 
 	private Random m_random;
 	private int numTrees;
-	private int numAttributes;
 	private int numClasses;
 	private double bagSizePercent = 100;
 	private int numThreads;
@@ -201,19 +201,17 @@ public class RandomForest implements Serializable
 
 	public void buildClassifier(FeatureReader data, int numClasses, int[] instanceIndices)
 	{
-		this.numAttributes = data.getNumFeatures();
 		this.numClasses = numClasses;
 		final int bagSize = (int) Math.floor(instanceIndices.length * (bagSizePercent / 100));
 
 		// Make sure K value is in range
-		if (m_KValue >= numAttributes)
+		if (numAttributes >= data.getNumFeatures())
 		{
-			m_KValue = numAttributes - 1;
+			numAttributes = data.getNumFeatures();
 		}
-		if (m_KValue < 1)
+		if (numAttributes < 1)
 		{
-			m_KValue = (int) Utility.log2(numAttributes - 1) + 1;
-
+			numAttributes = (int) Utility.log2(numAttributes - 1) + 1;
 		}
 
 		this.m_random = new Random(m_randomSeed);
@@ -611,7 +609,7 @@ public class RandomForest implements Serializable
 			// Investigate K random attributes
 			int attIndex = 0;
 			int windowSize = attIndicesWindow.length;
-			int k = m_KValue;
+			int k = numAttributes;
 			boolean gainFound = false;
 			while ((windowSize > 0) && (k-- > 0 || !gainFound)) {
 
