@@ -21,7 +21,7 @@ public class AboutImageSurf implements Command {
 				"image segmentation that uses an optimised implementation of the random forests machine learning " +
 				"algorithm and a set of selected image features." +
 				"\n\n" +
-				"For instructions on how to use ImageSURF visit https://github.com/omaraa/ImageSURF/" +
+				"For instructions on how to use ImageSURF visit https://github.com/omaraa/ImageSURF/wiki" +
 				"\n\n" +
 				"To get help, report bugs or request features visit the ImageSURF GitHub issues page at "+
 				"https://github.com/omaraa/ImageSURF/issues";
