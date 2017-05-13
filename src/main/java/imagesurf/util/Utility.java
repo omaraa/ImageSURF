@@ -246,9 +246,9 @@ public class Utility
 		for(int z = 0; z< features.numSlices; z++)
 			for(int t = 0; t< features.numFrames; t++)
 			{
-
+				int finalCurrentSlice = currentSlice;
 				ImageFeatures.ProgressListener imageFeaturesProgressListener = (current, max, message) ->
-						statusService.showStatus(current, max, "Calculating features for plane "+currentSlice+"/"+
+						statusService.showStatus(current, max, "Calculating features for plane "+ finalCurrentSlice +"/"+
 								(features.numChannels*features.numSlices*features.numFrames));
 
 				features.addProgressListener(imageFeaturesProgressListener);
@@ -271,6 +271,8 @@ public class Utility
 					}
 
 				}
+
+				currentSlice++;
 			}
 
 		return outputStack;
