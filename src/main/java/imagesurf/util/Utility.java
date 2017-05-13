@@ -484,4 +484,50 @@ public class Utility
 				throw new IllegalArgumentException("Image type not supported.");
 		}
 	}
+
+	public static String describeClassifier(ImageSurfClassifier classifier)
+	{
+		if(null == classifier)
+			return "Classifier does not exist (NULL).";
+
+
+		RandomForest randomForest = classifier.getRandomForest();
+
+		if(null == randomForest || !randomForest.isTrained())
+			return "Classifier does not exist (not trained).";
+
+		StringBuilder sb = new StringBuilder();
+
+		int numAttributes = randomForest.getNumAttributes();
+
+		String bit = "???";
+
+		switch (classifier.getPixelType())
+		{
+
+			case GRAY_8_BIT:
+				bit = "8-bit";
+				break;
+			case GRAY_16_BIT:
+				bit = "16-bit";
+				break;
+		}
+
+		sb.append("Random forest was built for ")
+				.append(bit)
+				.append(" images with ")
+				.append(randomForest.getNumTrees())
+				.append(" trees to a maximum depth of ")
+				.append(randomForest.getMaxDepth())
+				.append(" nodes, considering ")
+				.append(numAttributes)
+				.append(" features at each decision node.");
+
+		sb.append("\n\nFeatures used:\n");
+
+		for(FeatureCalculator f :classifier.getFeatures())
+			sb.append(f.getDescription()).append("\n");
+
+		return sb.toString();
+	}
 }
