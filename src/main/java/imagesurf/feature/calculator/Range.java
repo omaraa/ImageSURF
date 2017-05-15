@@ -18,7 +18,9 @@
 package imagesurf.feature.calculator;
 
 import java.io.Serializable;
+import java.util.Enumeration;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class Range implements FeatureCalculator, Serializable
 {
@@ -135,22 +137,58 @@ public class Range implements FeatureCalculator, Serializable
 		return new Range(radius);
 	}
 
+	private final ConcurrentHashMap<String, Object> tags = new ConcurrentHashMap<>();
+
+	@Override
+	public Object getTag(String tagName)
+	{
+		return tags.get(tagName);
+	}
+
+	@Override
+	public void setTag(String tagName, Object tagValue)
+	{
+		tags.put(tagName, tagValue);
+	}
+
+	@Override
+	public Enumeration<String> getAllTags()
+	{
+		return tags.keys();
+	}
+
+	@Override
+	public void removeTag(String tagName)
+	{
+		tags.remove(tagName);
+	}
+
 	@Override
 	public boolean equals(Object o)
 	{
-		if (this == o) return true;
-		if (o == null || getClass() != o.getClass()) return false;
+		if (this == o)
+			return true;
+		if (!(o instanceof Range))
+			return false;
 
-		Range that = (Range) o;
+		Range range = (Range) o;
 
-		if (radius != that.radius) return false;
-
-		return true;
+		if (radius != range.radius)
+			return false;
+		if (!minCalculator.equals(range.minCalculator))
+			return false;
+		if (!maxCalculator.equals(range.maxCalculator))
+			return false;
+		return tags.equals(range.tags);
 	}
 
 	@Override
 	public int hashCode()
 	{
-		return radius;
+		int result = radius;
+		result = 31 * result + minCalculator.hashCode();
+		result = 31 * result + maxCalculator.hashCode();
+		result = 31 * result + tags.hashCode();
+		return result;
 	}
 }

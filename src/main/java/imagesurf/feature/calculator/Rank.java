@@ -19,7 +19,9 @@ package imagesurf.feature.calculator;
 
 import java.io.Serializable;
 import java.util.Arrays;
+import java.util.Enumeration;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 abstract class Rank implements FeatureCalculator, Serializable
 {
@@ -85,6 +87,32 @@ abstract class Rank implements FeatureCalculator, Serializable
 		return getName() + " ("+getRadius() + ')';
 	}
 
+	private final ConcurrentHashMap<String, Object> tags = new ConcurrentHashMap<>();
+
+	@Override
+	public Object getTag(String tagName)
+	{
+		return tags.get(tagName);
+	}
+
+	@Override
+	public void setTag(String tagName, Object tagValue)
+	{
+		tags.put(tagName, tagValue);
+	}
+
+	@Override
+	public Enumeration<String> getAllTags()
+	{
+		return tags.keys();
+	}
+
+	@Override
+	public void removeTag(String tagName)
+	{
+		tags.remove(tagName);
+	}
+
 	@Override
 	public boolean equals(Object o)
 	{
@@ -95,14 +123,17 @@ abstract class Rank implements FeatureCalculator, Serializable
 
 		Rank rank = (Rank) o;
 
-		return filter.equals(rank.filter);
-
+		if (!filter.equals(rank.filter))
+			return false;
+		return tags.equals(rank.tags);
 	}
 
 	@Override
 	public int hashCode()
 	{
-		return filter.hashCode();
+		int result = filter.hashCode();
+		result = 31 * result + tags.hashCode();
+		return result;
 	}
 
 	@Override

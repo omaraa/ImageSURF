@@ -19,7 +19,9 @@ package imagesurf.feature.calculator;
 
 import java.io.Serializable;
 import java.util.Arrays;
+import java.util.Enumeration;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class LocalIntensity implements FeatureCalculator, Serializable
 {
@@ -208,22 +210,58 @@ public class LocalIntensity implements FeatureCalculator, Serializable
 		return radius;
 	}
 
+	private final ConcurrentHashMap<String, Object> tags = new ConcurrentHashMap<>();
+
+	@Override
+	public Object getTag(String tagName)
+	{
+		return tags.get(tagName);
+	}
+
+	@Override
+	public void setTag(String tagName, Object tagValue)
+	{
+		tags.put(tagName, tagValue);
+	}
+
+	@Override
+	public Enumeration<String> getAllTags()
+	{
+		return tags.keys();
+	}
+
+	@Override
+	public void removeTag(String tagName)
+	{
+		tags.remove(tagName);
+	}
+
 	@Override
 	public boolean equals(Object o)
 	{
-		if (this == o) return true;
-		if (o == null || getClass() != o.getClass()) return false;
+		if (this == o)
+			return true;
+		if (!(o instanceof LocalIntensity))
+			return false;
 
 		LocalIntensity that = (LocalIntensity) o;
 
-		if (radius != that.radius) return false;
-
-		return true;
+		if (radius != that.radius)
+			return false;
+		if (!min.equals(that.min))
+			return false;
+		if (!max.equals(that.max))
+			return false;
+		return tags.equals(that.tags);
 	}
 
 	@Override
 	public int hashCode()
 	{
-		return radius;
+		int result = radius;
+		result = 31 * result + min.hashCode();
+		result = 31 * result + max.hashCode();
+		result = 31 * result + tags.hashCode();
+		return result;
 	}
 }

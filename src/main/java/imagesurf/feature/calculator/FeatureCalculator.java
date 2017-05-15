@@ -18,8 +18,7 @@
 package imagesurf.feature.calculator;
 
 import java.io.Serializable;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 public interface FeatureCalculator extends Serializable
 {
@@ -95,4 +94,14 @@ public interface FeatureCalculator extends Serializable
 	FeatureCalculator duplicate();
 
 	int getRadius();
+
+	Object getTag(String tagName);
+	void setTag(String tagName,Object tagValue);
+	Enumeration<String> getAllTags();
+	void removeTag(String tagName);
+	default void removeTags(Collection<String> tagNames)
+	{
+		for(String tagName : tagNames)
+			removeTag(tagName);
+	}
 }

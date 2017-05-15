@@ -18,7 +18,10 @@
 package imagesurf.feature.calculator;
 
 import java.io.Serializable;
+import java.util.Enumeration;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class DifferenceOf implements FeatureCalculator, Serializable
 {
@@ -167,12 +170,39 @@ public class DifferenceOf implements FeatureCalculator, Serializable
 		return Math.max(featureCalculatorA.getRadius(), featureCalculatorB.getRadius());
 	}
 
+
+	private final ConcurrentHashMap<String, Object> tags = new ConcurrentHashMap<>();
+
+	@Override
+	public Object getTag(String tagName)
+	{
+		return tags.get(tagName);
+	}
+
+	@Override
+	public void setTag(String tagName, Object tagValue)
+	{
+		tags.put(tagName, tagValue);
+	}
+
+	@Override
+	public Enumeration<String> getAllTags()
+	{
+		return tags.keys();
+	}
+
+	@Override
+	public void removeTag(String tagName)
+	{
+		tags.remove(tagName);
+	}
+
 	@Override
 	public boolean equals(Object o)
 	{
 		if (this == o)
 			return true;
-		if (o == null || getClass() != o.getClass())
+		if (!(o instanceof DifferenceOf))
 			return false;
 
 		DifferenceOf that = (DifferenceOf) o;
@@ -181,10 +211,11 @@ public class DifferenceOf implements FeatureCalculator, Serializable
 			return false;
 		if (Double.compare(that.offset, offset) != 0)
 			return false;
-		if (featureCalculatorA != null ? !featureCalculatorA.equals(that.featureCalculatorA) : that.featureCalculatorA != null)
+		if (!featureCalculatorA.equals(that.featureCalculatorA))
 			return false;
-		return featureCalculatorB != null ? featureCalculatorB.equals(that.featureCalculatorB) : that.featureCalculatorB == null;
-
+		if (!featureCalculatorB.equals(that.featureCalculatorB))
+			return false;
+		return tags.equals(that.tags);
 	}
 
 	@Override
@@ -192,12 +223,13 @@ public class DifferenceOf implements FeatureCalculator, Serializable
 	{
 		int result;
 		long temp;
-		result = featureCalculatorA != null ? featureCalculatorA.hashCode() : 0;
-		result = 31 * result + (featureCalculatorB != null ? featureCalculatorB.hashCode() : 0);
+		result = featureCalculatorA.hashCode();
+		result = 31 * result + featureCalculatorB.hashCode();
 		temp = Double.doubleToLongBits(multiplier);
 		result = 31 * result + (int) (temp ^ (temp >>> 32));
 		temp = Double.doubleToLongBits(offset);
 		result = 31 * result + (int) (temp ^ (temp >>> 32));
+		result = 31 * result + tags.hashCode();
 		return result;
 	}
 

@@ -23,7 +23,9 @@ import ij.process.ShortProcessor;
 
 import java.io.Serializable;
 import java.util.Arrays;
+import java.util.Enumeration;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Reimplementation of entropy filter from WEKA trainable segmentation 20170111
@@ -236,22 +238,52 @@ public class Entropy implements FeatureCalculator, Serializable
 		return new Entropy(radius);
 	}
 
+	private final ConcurrentHashMap<String, Object> tags = new ConcurrentHashMap<>();
+
+	@Override
+	public Object getTag(String tagName)
+	{
+		return tags.get(tagName);
+	}
+
+	@Override
+	public void setTag(String tagName, Object tagValue)
+	{
+		tags.put(tagName, tagValue);
+	}
+
+	@Override
+	public Enumeration<String> getAllTags()
+	{
+		return tags.keys();
+	}
+
+	@Override
+	public void removeTag(String tagName)
+	{
+		tags.remove(tagName);
+	}
+
 	@Override
 	public boolean equals(Object o)
 	{
-		if (this == o) return true;
-		if (o == null || getClass() != o.getClass()) return false;
+		if (this == o)
+			return true;
+		if (!(o instanceof Entropy))
+			return false;
 
-		Entropy that = (Entropy) o;
+		Entropy entropy = (Entropy) o;
 
-		if (radius != that.radius) return false;
-
-		return true;
+		if (radius != entropy.radius)
+			return false;
+		return tags.equals(entropy.tags);
 	}
 
 	@Override
 	public int hashCode()
 	{
-		return radius;
+		int result = radius;
+		result = 31 * result + tags.hashCode();
+		return result;
 	}
 }

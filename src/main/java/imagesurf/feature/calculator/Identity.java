@@ -19,17 +19,17 @@ package imagesurf.feature.calculator;
 
 import java.io.Serializable;
 import java.util.Arrays;
+import java.util.Enumeration;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class Identity implements FeatureCalculator, Serializable
 {
 	static final long serialVersionUID = 42L;
 
-	private static final Identity SINGLETON = new Identity();
-
 	public static Identity get()
 	{
-		return SINGLETON;
+		return new Identity();
 	}
 
 	private Identity() {}
@@ -95,21 +95,53 @@ public class Identity implements FeatureCalculator, Serializable
 	}
 
 	@Override
-	public boolean equals(Object obj)
-	{
-		return obj.getClass() == this.getClass();
-	}
-
-	@Override
-	public int hashCode()
-	{
-		return 42;
-	}
-
-	@Override
 	public FeatureCalculator[] getDependencies()
 	{
 		return new FeatureCalculator[0];
 	}
 
+	private final ConcurrentHashMap<String, Object> tags = new ConcurrentHashMap<>();
+
+	@Override
+	public Object getTag(String tagName)
+	{
+		return tags.get(tagName);
+	}
+
+	@Override
+	public void setTag(String tagName, Object tagValue)
+	{
+		tags.put(tagName, tagValue);
+	}
+
+	@Override
+	public Enumeration<String> getAllTags()
+	{
+		return tags.keys();
+	}
+
+	@Override
+	public void removeTag(String tagName)
+	{
+		tags.remove(tagName);
+	}
+
+	@Override
+	public boolean equals(Object o)
+	{
+		if (this == o)
+			return true;
+		if (!(o instanceof Identity))
+			return false;
+
+		Identity identity = (Identity) o;
+
+		return tags.equals(identity.tags);
+	}
+
+	@Override
+	public int hashCode()
+	{
+		return tags.hashCode();
+	}
 }

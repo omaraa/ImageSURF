@@ -23,7 +23,9 @@ import ij.process.ShortProcessor;
 
 import java.io.Serializable;
 import java.util.Arrays;
+import java.util.Enumeration;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class Gaussian implements FeatureCalculator, Serializable
 {
@@ -120,24 +122,53 @@ public class Gaussian implements FeatureCalculator, Serializable
 		return getName() + " ("+getRadius() + ')';
 	}
 
+	private final ConcurrentHashMap<String, Object> tags = new ConcurrentHashMap<>();
+
+	@Override
+	public Object getTag(String tagName)
+	{
+		return tags.get(tagName);
+	}
+
+	@Override
+	public void setTag(String tagName, Object tagValue)
+	{
+		tags.put(tagName, tagValue);
+	}
+
+	@Override
+	public Enumeration<String> getAllTags()
+	{
+		return tags.keys();
+	}
+
+	@Override
+	public void removeTag(String tagName)
+	{
+		tags.remove(tagName);
+	}
+
 	@Override
 	public boolean equals(Object o)
 	{
 		if (this == o)
 			return true;
-		if (o == null || getClass() != o.getClass())
+		if (!(o instanceof Gaussian))
 			return false;
 
 		Gaussian gaussian = (Gaussian) o;
 
-		return radius == gaussian.radius;
-
+		if (radius != gaussian.radius)
+			return false;
+		return tags.equals(gaussian.tags);
 	}
 
 	@Override
 	public int hashCode()
 	{
-		return radius;
+		int result = radius;
+		result = 31 * result + tags.hashCode();
+		return result;
 	}
 
 	@Override
