@@ -91,6 +91,24 @@ public interface FeatureCalculator extends Serializable
 
 	FeatureCalculator[] getDependencies();
 
+	default FeatureCalculator[] getDependenciesWithTags()
+	{
+		FeatureCalculator[] dependencies = getDependencies();
+
+		Enumeration<String> tags = getAllTags();
+
+		while (tags.hasMoreElements())
+		{
+			String tagName = tags.nextElement();
+			Object tagValue = getTag(tagName);
+
+			for(FeatureCalculator f :dependencies)
+				f.setTag(tagName, tagValue);
+		}
+
+		return dependencies;
+	}
+
 	FeatureCalculator duplicate();
 
 	int getRadius();
@@ -103,5 +121,16 @@ public interface FeatureCalculator extends Serializable
 	{
 		for(String tagName : tagNames)
 			removeTag(tagName);
+	}
+
+	default boolean hasTag(String tagName)
+	{
+		Enumeration<String> tags = getAllTags();
+
+		while (tags.hasMoreElements())
+			if(tags.nextElement().equals(tagName))
+				return true;
+
+		return false;
 	}
 }
