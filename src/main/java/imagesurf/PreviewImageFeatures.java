@@ -38,6 +38,8 @@ import org.scijava.plugin.Plugin;
 import org.scijava.prefs.PrefService;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
 
 @Plugin(type = Command.class, headless = true,
 	menuPath = "Plugins>Segmentation>ImageSURF>Advanced>Preview Image Features")
@@ -60,7 +62,7 @@ public class PreviewImageFeatures implements Command{
 		final ImageJ ij = net.imagej.Main.launch(args);
 
 		final Dataset dataset =
-				ij.dataset().open("/Users/omaraa/Desktop/imageSURF test/images/137964 A.ome-9.tif");
+				ij.dataset().open("/home/omaraa/Downloads/imagesurf-2-channel-plaque/training/001.tif");
 		ij.ui().show(dataset);
 
 		ij.command().run(PreviewImageFeatures.class, true);
@@ -71,25 +73,41 @@ public class PreviewImageFeatures implements Command{
 	{
 		try
 		{
-			if(image.getNChannels()>1)
-				throw new RuntimeException("ImageSURF does not yet support multi-channel images.");
 
 			final int minFeatureRadius = prefs.getInt(ImageSurfSettings.IMAGESURF_MIN_FEATURE_RADIUS, ImageSurfSettings.DEFAULT_MIN_FEATURE_RADIUS);
 			final int maxFeatureRadius = prefs.getInt(ImageSurfSettings.IMAGESURF_MAX_FEATURE_RADIUS, ImageSurfSettings.DEFAULT_MAX_FEATURE_RADIUS);
 
 			final ImageFeatures features = new ImageFeatures(image);
-			FeatureCalculator[] featureCalculators = ImageSurfImageFilterSelection.getFeatureCalculators(features.pixelType,minFeatureRadius, maxFeatureRadius, prefs);
+			FeatureCalculator[] baseCalculators = ImageSurfImageFilterSelection.getFeatureCalculators(features.pixelType,
+					minFeatureRadius, maxFeatureRadius, prefs);
+
+			List<FeatureCalculator> featureCalculatorsList = new ArrayList<>(baseCalculators.length*features.numMergedChannels);
+
+			for(int c = 0 ; c < features.numMergedChannels; c++)
+			{
+				for(FeatureCalculator f : baseCalculators)
+				{
+					FeatureCalculator tagged = f.duplicate();
+					tagged.setTag(ImageFeatures.FEATURE_TAG_CHANNEL_INDEX, c);
+					featureCalculatorsList.add(tagged);
+				}
+			}
 
 			System.out.println("Selected filters: ");
-			for(FeatureCalculator f : featureCalculators)
-				System.out.println(f.getDescription());
+			for(FeatureCalculator f : featureCalculatorsList)
+				System.out.println(f.getDescriptionWithTags());
 
-			if(featureCalculators.length == 0)
+			if(featureCalculatorsList.size() == 0)
 				throw new RuntimeException("No image filters have been selected.");
 
 			PixelType pixelType = Utility.getPixelType(image);
 
-			image.setStack(Utility.calculateImageFeatures(featureCalculators, features, statusService, pixelType));
+			final ImageStack imageStack = Utility.calculateImageFeatures(featureCalculatorsList.stream().toArray
+							(FeatureCalculator[]::new),
+					features,
+			statusService, pixelType);
+			image.setStack(imageStack);
+			image.setDimensions(1, imageStack.getSize(), 1);
 		}
 		catch (Exception e)
 		{

@@ -169,6 +169,9 @@ public class ImageSurfImageFilterSelection implements Command
 
 	static FeatureCalculator[] getFeatureCalculators(PixelType pixelType, int minFeatureRadius, int maxFeatureRadius, PrefService prefs)
 	{
+		if(null == pixelType)
+			throw new IllegalArgumentException("pixelType is null.");
+
 		List<Class> toExclude = new ArrayList<>();
 		if(!prefs.getBoolean(ImageSurfSettings.IMAGESURF_USE_IDENTITY, false))
 			toExclude.add(Identity.class);

@@ -17,16 +17,13 @@
 
 package imagesurf;
 
+import ij.*;
 import imagesurf.classifier.ImageSurfClassifier;
 import imagesurf.classifier.RandomForest;
 import imagesurf.feature.FeatureReader;
 import imagesurf.feature.ImageFeatures;
 import imagesurf.feature.PixelType;
 import imagesurf.feature.calculator.FeatureCalculator;
-import ij.IJ;
-import ij.ImagePlus;
-import ij.ImageStack;
-import ij.Prefs;
 import ij.io.FileSaver;
 import ij.process.ByteProcessor;
 import ij.process.ImageProcessor;
@@ -126,11 +123,16 @@ public class TrainImageSurf implements Command{
 	@Parameter(type = ItemIO.OUTPUT)
 	Dataset validationImage;
 
+	@Parameter(type = ItemIO.OUTPUT)
+	String ImageSURF;
+
+
 	FeatureCalculator[] selectedFeatures;
 
 	private Random random;
 	private RandomForest randomForest;
 	private PixelType pixelType = null;
+	private int numChannels = -1;
 
 	File[] labelFiles;
 	File[] imageFiles;
@@ -165,11 +167,13 @@ public class TrainImageSurf implements Command{
 		if(saveCalculatedFeatures)
 			featuresPath.mkdirs();
 
-		selectedFeatures = ImageSurfImageFilterSelection.getFeatureCalculators(
-				PixelType.GRAY_8_BIT,
-				prefService.getInt(ImageSurfSettings.IMAGESURF_MIN_FEATURE_RADIUS, ImageSurfSettings.DEFAULT_MIN_FEATURE_RADIUS),
-				prefService.getInt(ImageSurfSettings.IMAGESURF_MAX_FEATURE_RADIUS, ImageSurfSettings.DEFAULT_MAX_FEATURE_RADIUS),
-				prefService);
+		{
+			ImageFeatures prototype = new ImageFeatures(new ImagePlus(imageFiles[0].getAbsolutePath()));
+			numChannels = prototype.numChannels;
+			pixelType = prototype.pixelType;
+		}
+
+		selectedFeatures = getSelectedFeatures();
 
 		if(selectedFeatures == null || selectedFeatures.length == 0)
 			throw new RuntimeException("Cannot build imagesurf.classifier with no features.");
@@ -187,10 +191,10 @@ public class TrainImageSurf implements Command{
 			switch (pixelType)
 			{
 				case GRAY_8_BIT:
-					reader = new ImageFeatures.ByteReader((byte[][]) trainingExamples, selectedFeatures.length);
+					reader = new ImageFeatures.ByteReader((byte[][]) trainingExamples, trainingExamples.length-1);
 					break;
 				case GRAY_16_BIT:
-					reader = new ImageFeatures.ShortReader((short[][]) trainingExamples, selectedFeatures.length);
+					reader = new ImageFeatures.ShortReader((short[][]) trainingExamples, trainingExamples.length-1);
 					break;
 				default:
 					throw new RuntimeException("Pixel type "+pixelType+" not supported.");
@@ -204,8 +208,6 @@ public class TrainImageSurf implements Command{
 		if(reader.getNumInstances() == 0)
 			throw new RuntimeException("No example pixels provided - cannot train classifier.");
 
-
-
 		short[] classes = reader.getClasses();
 		int background = 0;
 		int signal = 0;
@@ -215,7 +217,8 @@ public class TrainImageSurf implements Command{
 		else
 			background++;
 
-		System.out.println("Total examples: "+reader.getNumInstances()+"\tSignal examples: "+signal+"\tBackground examples: "+background);
+		log.info("Total examples: "+reader.getNumInstances()+"\tSignal examples: "+signal+"\tBackground examples: " +
+				""+background);
 
 		RandomForest.ProgressListener randomForestProgressListener = (current, max, message) ->
 				statusService.showStatus(current, max, message);
@@ -251,18 +254,30 @@ public class TrainImageSurf implements Command{
 			log.info("Verification 0: "+verificationClassCount[0]+"\t1: "+verificationClassCount[1]);
 
 			log.info("Segmenter classifies "+correct+"/"+verificationClasses.length+" "+(((double)correct)/verificationClasses.length)*100+"%) of the training pixels correctly.");
+
+			ImageSURF = "Classes in training set - 0:" +classCount[0]+"\t1: "+classCount[1]+"\n";
+			ImageSURF += "Classes in verification set - 0:" +verificationClassCount[0]+"\t1: " +
+					""+verificationClassCount[1]+"\n\n";
+			ImageSURF += "Segmenter classifies "+correct+"/"+verificationClasses.length+" "+(((double)correct)
+				/verificationClasses.length)*100+"%) of the training pixels correctly.";
+
 		}
 		catch (InterruptedException e)
 		{
-			e.printStackTrace();
+			log.error(e);
 		}
 
 		randomForest.removeprogressListener(randomForestProgressListener);
 
 
-		ImageSurfClassifier imageSurfClassifier = new ImageSurfClassifier(randomForest, selectedFeatures, pixelType);
+		ImageSurfClassifier imageSurfClassifier = new ImageSurfClassifier(randomForest, selectedFeatures, pixelType, numChannels);
 
 		writeClassifier(imageSurfClassifier);
+
+
+		ImageSURF = "ImageSURF classifier successfully trained and saved to "+classifierOutputPath.getAbsolutePath()
+				+"\n\n" + ImageSURF+"\n\n";
+		ImageSURF += Utility.describeClassifier(imageSurfClassifier);
 
 		switch (afterTraining)
 		{
@@ -284,6 +299,30 @@ public class TrainImageSurf implements Command{
 					"have been created in the folder\n\n"+imageSurfDataPath.getAbsolutePath()+"\n\nIt is recommended " +
 					"that you delete these files after the imagesurf.classifier has been finalised to save disk space."
 			);
+	}
+
+	private FeatureCalculator[] getSelectedFeatures() {
+		FeatureCalculator[] baseCalculators = ImageSurfImageFilterSelection.getFeatureCalculators(
+				pixelType,
+				prefService.getInt(ImageSurfSettings.IMAGESURF_MIN_FEATURE_RADIUS, ImageSurfSettings.DEFAULT_MIN_FEATURE_RADIUS),
+				prefService.getInt(ImageSurfSettings.IMAGESURF_MAX_FEATURE_RADIUS, ImageSurfSettings.DEFAULT_MAX_FEATURE_RADIUS),
+				prefService);
+
+		final int numMergedChannels = Utility.calculateNumMergedChannels(numChannels);
+
+		List<FeatureCalculator> selectedFeatures = new ArrayList<>(baseCalculators.length*numMergedChannels);
+
+		for(int c = 0 ; c < numMergedChannels; c++)
+		{
+			for(FeatureCalculator f : baseCalculators)
+			{
+				FeatureCalculator tagged = f.duplicate();
+				tagged.setTag(ImageFeatures.FEATURE_TAG_CHANNEL_INDEX, c);
+				selectedFeatures.add(tagged);
+			}
+		}
+
+		return selectedFeatures.stream().toArray(FeatureCalculator[]::new);
 	}
 
 	private void segmentTrainingImagesAndDisplay(ImageSurfClassifier imageSurfClassifier)
@@ -308,13 +347,13 @@ public class TrainImageSurf implements Command{
 				if (featureFiles[imageIndex] == null || !featureFiles[imageIndex].exists())
 				{
 					imageFeatures = new ImageFeatures(image);
-					System.out.println(featureFiles[imageIndex].getAbsolutePath()+" doesn't exist.");
+					log.error(featureFiles[imageIndex].getAbsolutePath()+" doesn't exist.");
 
 				}
 				else
 				{
 					statusService.showStatus("Reading features for image " + (imageIndex + 1) + "/" + numImages);
-					System.out.println("Reading features for image " + (imageIndex + 1) + "/" + numImages);
+					log.info("Reading features for image " + (imageIndex + 1) + "/" + numImages);
 					imageFeatures = ImageFeatures.deserialize(featureFiles[imageIndex].toPath());
 				}
 
@@ -328,7 +367,7 @@ public class TrainImageSurf implements Command{
 			}
 			catch (Exception e)
 			{
-				e.printStackTrace();
+				log.error(e);
 			}
 		}
 
@@ -409,7 +448,7 @@ public class TrainImageSurf implements Command{
 				else
 				{
 					statusService.showStatus("Reading features for image " + (imageIndex + 1) + "/" + numImages);
-					System.out.println("Reading features for image " + (imageIndex + 1) + "/" + numImages);
+					log.info("Reading features for image " + (imageIndex + 1) + "/" + numImages);
 					imageFeatures = ImageFeatures.deserialize(featureFiles[imageIndex].toPath());
 				}
 
@@ -423,7 +462,7 @@ public class TrainImageSurf implements Command{
 			}
 			catch (Exception e)
 			{
-				e.printStackTrace();
+				log.error(e);
 			}
 		}
 	}
@@ -503,16 +542,19 @@ public class TrainImageSurf implements Command{
 		{
 			throw new RuntimeException("Failed to calculate feature importance", e);
 		}
-		int[] rankedFeatures = IntStream.range(0, selectedFeatures.length).toArray();
+		int[] rankedFeatures = IntStream.range(0, reader.getNumFeatures())
+				.filter(i -> reader.getClassIndex() != i)
+				.toArray();
 
 		Primitive.sort(rankedFeatures, (i1, i2) -> {
 			return Double.compare(featureImportance[i2], featureImportance[i1]);
 		});
 
+
 		log.info("Feature Importance:");
 		for(int i : rankedFeatures)
 		{
-			log.info(selectedFeatures[i].getDescription() +": "+featureImportance[i]);
+			log.info(selectedFeatures[i].getDescriptionWithTags() +": "+featureImportance[i]);
 		}
 
 		selectedFeatures = Arrays.stream(rankedFeatures, 0, maxFeatures)
@@ -535,7 +577,7 @@ public class TrainImageSurf implements Command{
 		for(int i = 0; i < maxFeatures; i++)
 			optimisedTrainingExamples[i] = trainingExamples[rankedFeatures[i]];
 
-		//Add example classes
+		//Add class annotations
 		optimisedTrainingExamples[maxFeatures] = trainingExamples[trainingExamples.length-1];
 
 		final FeatureReader optimisedFeaturesReader;
@@ -556,6 +598,10 @@ public class TrainImageSurf implements Command{
 
 	private Object[] getTrainingExamples() throws Exception
 	{
+		//Reset channels and pixeltype just in case
+		numChannels = -1;
+		pixelType = null;
+
 		if(labelFiles.length == 0)
 			throw new RuntimeException("No valid label files");
 
@@ -578,34 +624,45 @@ public class TrainImageSurf implements Command{
 			final int currentImageIndex = imageIndex;
 			final int firstExampleIndex = currentImageFirstExampleIndex;
 
-			final ImagePlus image = new ImagePlus(imageFiles[imageIndex].getAbsolutePath());
+			final ImagePlus image;
+			{
+				ImagePlus imagePlus = new ImagePlus(imageFiles[imageIndex].getAbsolutePath());
+
+				if(imagePlus.getType() == ImagePlus.COLOR_RGB)
+					image = new CompositeImage(imagePlus, CompositeImage.GRAYSCALE);
+				else
+					image = imagePlus;
+			}
+
 			if (image.getNFrames() * image.getNSlices() > 1)
 				throw new RuntimeException("Training image " + image.getTitle() + " not valid. Images must be single plane.");
 
-			if (image.getNChannels() != 1)
-				throw new RuntimeException("ImageSURF does not yet support multi-channel images.");
+
+			if(numChannels < 0)
+			{
+				numChannels = image.getNChannels();
+			}
+
+			if(image.getNChannels() != numChannels)
+				throw new RuntimeException("Training image " + image.getTitle() + " not valid. Image has "+image.getNChannels()+" channels. Expected "+numChannels+".");
 
 			final ImageFeatures imageFeatures;
 			if (featureFiles[imageIndex] == null || !featureFiles[imageIndex].exists())
 			{
-				System.out.println("Reading image " + (currentImageIndex + 1) + "/" + numImages);
+				log.info("Reading image " + (currentImageIndex + 1) + "/" + numImages);
 				imageFeatures = new ImageFeatures(image);
 			}
 			else
 			{
 				statusService.showStatus("Reading features for image " + (currentImageIndex + 1) + "/" + numImages);
-				System.out.println("Reading features for image " + (currentImageIndex + 1) + "/" + numImages);
+				log.info("Reading features for image " + (currentImageIndex + 1) + "/" + numImages);
 				imageFeatures = ImageFeatures.deserialize(featureFiles[imageIndex].toPath());
 			}
 
 			if (imageIndex == 0 || pixelType == null)
 			{
 				pixelType = imageFeatures.pixelType;
-				selectedFeatures = ImageSurfImageFilterSelection.getFeatureCalculators(
-						pixelType,
-						prefService.getInt(ImageSurfSettings.IMAGESURF_MIN_FEATURE_RADIUS, ImageSurfSettings.DEFAULT_MIN_FEATURE_RADIUS),
-						prefService.getInt(ImageSurfSettings.IMAGESURF_MAX_FEATURE_RADIUS, ImageSurfSettings.DEFAULT_MAX_FEATURE_RADIUS),
-						prefService);
+				selectedFeatures = getSelectedFeatures();
 			}
 
 			if (imageFeatures.pixelType != pixelType)
@@ -626,7 +683,7 @@ public class TrainImageSurf implements Command{
 
 			boolean calculatedFeatures = false;
 			imageFeatures.addProgressListener(progressListener);
-			if(imageFeatures.calculateFeatures(0, 0, 0, selectedFeatures))
+			if(imageFeatures.calculateFeatures(0, 0, selectedFeatures))
 				calculatedFeatures = true;
 			imageFeatures.removeProgressListener(progressListener);
 
@@ -636,12 +693,21 @@ public class TrainImageSurf implements Command{
 					imageSurfDataPath.mkdirs();
 
 				statusService.showStatus("Writing features for image " + (currentImageIndex + 1) + "/" + numImages);
-				System.out.println("Writing features to "+featureFiles[imageIndex].toPath());
+				log.info("Writing features to "+featureFiles[imageIndex].toPath());
 				imageFeatures.serialize(featureFiles[imageIndex].toPath());
-				System.out.println("Wrote features to "+featureFiles[imageIndex].toPath());
+				log.info("Wrote features to "+featureFiles[imageIndex].toPath());
 			}
 
-			//fixme: only grabbing first set of feature pixels from calculators. Current calculators only produce one
+			final int numFeatureImages;
+			{
+				int featureImageCount = 0;
+				for( FeatureCalculator f : selectedFeatures)
+					featureImageCount+= f.getNumImagesReturned();
+
+				numFeatureImages = featureImageCount;
+			}
+
+			//Assumes each feature calculate only produces one
 			// feature image, but future ones may produce more.
 			Object[] featurePixels;
 			switch (pixelType)
@@ -657,7 +723,7 @@ public class TrainImageSurf implements Command{
 					throw new RuntimeException("Pixel type "+pixelType+" not supported.");
 			}
 			for (int i = 0; i < selectedFeatures.length; i++)
-				featurePixels[i] = ((Object[])imageFeatures.getFeaturePixels(0, 0, 0, selectedFeatures[i]))[0];
+				featurePixels[i] = ((Object[])imageFeatures.getFeaturePixels(0, 0, selectedFeatures[i]))[0];
 
 
 			statusService.showStatus("Extracting examples from image " + (currentImageIndex + 1) + "/" + numImages);
@@ -712,7 +778,7 @@ public class TrainImageSurf implements Command{
 					}
 				}
 
-				featurePixels[selectedFeatures.length] = pixelClasses;
+				featurePixels[featurePixels.length-1] = pixelClasses;
 
 				labelledPixelIndices = labelledPixelIndicesList.stream().mapToInt(Integer::intValue).toArray();
 			}

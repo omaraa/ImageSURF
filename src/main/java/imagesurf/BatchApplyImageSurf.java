@@ -136,8 +136,6 @@ public class BatchApplyImageSurf implements Command{
 				ImagePlus image = new ImagePlus(imageFile.getAbsolutePath());
 				final String imageProgressString = " [image " + (imageIndex + 1) + "/" + imageFiles.length + "]";
 
-				if (image.getNChannels() > 1)
-					throw new RuntimeException("ImageSURF does not yet support multi-channel images.");
 
 				File featuresInputFile = new File(imageFile.getParentFile(), imageFile.getName() + ".features");
 
@@ -159,31 +157,31 @@ public class BatchApplyImageSurf implements Command{
 					throw new Exception("Classifier pixel type (" +
 							imageSurfClassifier.getPixelType() + ") does not match image pixel type (" + features.pixelType + ")");
 
+				if (imageSurfClassifier.getNumChannels() != features.numChannels)
+					throw new Exception("Classifier trained for "+imageSurfClassifier.getNumChannels()+" channels. Image has "+features.numChannels+" - cannot segment.");
+
 				final ImageStack outputStack = new ImageStack(image.getWidth(), image.getHeight());
 				final int numPixels = image.getWidth() * image.getHeight();
 				boolean featuresCalculated = false;
 
-				//todo: merge channels in multi-channel images and expand imagesurf.feature set. e.g., features sets for R, G, B, RG, RB, GB and RGB
-				//			for(int c = 0; c< image.getNChannels(); c++)
 				int currentSlice = 1;
-				int c = 0;
 				for (int z = 0; z < image.getNSlices(); z++)
 					for (int t = 0; t < image.getNFrames(); t++)
 					{
 						ImageFeatures.ProgressListener imageFeaturesProgressListener = (current, max, message) ->
 								statusService.showStatus(current, max, "Calculating features for plane " + currentSlice + "/" +
-										(image.getNChannels() * image.getNSlices() * image.getNFrames()) + imageProgressString);
+										(image.getNSlices() * image.getNFrames()) + imageProgressString);
 
 						features.addProgressListener(imageFeaturesProgressListener);
-						if (features.calculateFeatures(c, z, t, imageSurfClassifier.getFeatures()))
+						if (features.calculateFeatures(z, t, imageSurfClassifier.getFeatures()))
 							featuresCalculated = true;
 						features.removeProgressListener(imageFeaturesProgressListener);
 
-						final FeatureReader featureReader = features.getReader(c, z, t, imageSurfClassifier.getFeatures());
+						final FeatureReader featureReader = features.getReader(z, t, imageSurfClassifier.getFeatures());
 
 						RandomForest.ProgressListener randomForestProgressListener = (current, max, message) ->
 								statusService.showStatus(current, max, "Segmenting plane " + currentSlice + "/" +
-										(image.getNChannels() * image.getNSlices() * image.getNFrames()) + imageProgressString);
+										(image.getNSlices() * image.getNFrames()) + imageProgressString);
 
 						randomForest.addProgressListener(randomForestProgressListener);
 						int[] classes = randomForest.classForInstances(featureReader);

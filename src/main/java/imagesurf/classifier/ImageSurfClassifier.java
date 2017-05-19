@@ -29,10 +29,11 @@ public class ImageSurfClassifier implements Serializable
 	static final long serialVersionUID = 42L;
 
 	private final FeatureCalculator[] features;
+	private final int numChannels;
 	private final RandomForest randomForest;
 	private final PixelType pixelType;
 
-	public ImageSurfClassifier(RandomForest randomForest, FeatureCalculator[] features, PixelType pixelType)
+	public ImageSurfClassifier(RandomForest randomForest, FeatureCalculator[] features, PixelType pixelType, int numChannels)
 	{
 		if(!randomForest.isTrained())
 			throw new IllegalArgumentException("Classifier has not been trained - cannot use.");
@@ -40,11 +41,17 @@ public class ImageSurfClassifier implements Serializable
 		this.randomForest = randomForest;
 		this.features = Arrays.stream(features).toArray(FeatureCalculator[]::new);
 		this.pixelType = pixelType;
+		this.numChannels = numChannels;
 	}
 
 	public PixelType getPixelType()
 	{
 		return pixelType;
+	}
+
+	public int getNumChannels()
+	{
+		return numChannels;
 	}
 
 	public FeatureCalculator[] getFeatures()

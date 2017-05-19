@@ -133,4 +133,29 @@ public interface FeatureCalculator extends Serializable
 
 		return false;
 	}
+
+	default String getDescriptionWithTags()
+	{
+		StringBuilder description = new StringBuilder(getDescription());
+
+		Enumeration<String> tags = getAllTags();
+
+		if(tags.hasMoreElements())
+		{
+			description.append(" [");
+			while (tags.hasMoreElements())
+			{
+				String tagName = tags.nextElement();
+				description.append(tagName)
+						.append('=')
+						.append(getTag(tagName));
+
+				if (tags.hasMoreElements())
+					description.append(", ");
+			}
+
+			description.append(']');
+		}
+		return description.toString();
+	}
 }

@@ -190,6 +190,10 @@ public class Utility
 			throw new RuntimeException("Classifier pixel type ("+
 					imageSurfClassifier.getPixelType()+") does not match image pixel type ("+features.pixelType+")");
 
+		if (imageSurfClassifier.getNumChannels() != features.numChannels)
+			throw new RuntimeException("Classifier trained for "+imageSurfClassifier.getNumChannels()+" channels. Image has "+features.numChannels+" - cannot segment.");
+
+
 		final RandomForest randomForest = imageSurfClassifier.getRandomForest();
 		randomForest.setNumThreads(Prefs.getThreads());
 
@@ -197,10 +201,7 @@ public class Utility
 		final ImageStack outputStack = new ImageStack(image.getWidth(), image.getHeight());
 		final int numPixels = image.getWidth()*image.getHeight();
 
-		//todo: merge channels in multi-channel images and expand imagesurf.feature set. e.g., features sets for R, G, B, RG, RB, GB and RGB
-		//			for(int c = 0; c< image.getNChannels(); c++)
 		int currentSlice = 1;
-		int c = 0;
 		for(int z = 0; z< image.getNSlices(); z++)
 			for(int t = 0; t< image.getNFrames(); t++)
 			{
@@ -210,10 +211,10 @@ public class Utility
 								(image.getNChannels()*image.getNSlices()*image.getNFrames()));
 
 				features.addProgressListener(imageFeaturesProgressListener);
-				if(features.calculateFeatures(c, z, t, imageSurfClassifier.getFeatures()))
+				if(features.calculateFeatures(z, t, imageSurfClassifier.getFeatures()))
 					features.removeProgressListener(imageFeaturesProgressListener);
 
-				final FeatureReader featureReader = features.getReader(c, z, t, imageSurfClassifier.getFeatures());
+				final FeatureReader featureReader = features.getReader(z, t, imageSurfClassifier.getFeatures());
 
 				RandomForest.ProgressListener randomForestProgressListener = (current, max, message) ->
 						statusService.showStatus(current, max, "Segmenting plane "+currentSlice+"/"+
@@ -239,20 +240,17 @@ public class Utility
 
 		final ImageStack outputStack = new ImageStack(features.width, features.height);
 
-		//todo: merge channels in multi-channel images and expand imagesurf.feature set. e.g., features sets for R, G, B, RG, RB, GB and RGB
-		//			for(int c = 0; c< image.getNChannels(); c++)
 		int currentSlice = 1;
-		int c = 0;
 		for(int z = 0; z< features.numSlices; z++)
 			for(int t = 0; t< features.numFrames; t++)
 			{
 				int finalCurrentSlice = currentSlice;
 				ImageFeatures.ProgressListener imageFeaturesProgressListener = (current, max, message) ->
 						statusService.showStatus(current, max, "Calculating features for plane "+ finalCurrentSlice +"/"+
-								(features.numChannels*features.numSlices*features.numFrames));
+								(features.numSlices*features.numFrames));
 
 				features.addProgressListener(imageFeaturesProgressListener);
-				if(features.calculateFeatures(c, z, t, featureCalculators))
+				if(features.calculateFeatures(z, t, featureCalculators))
 					features.removeProgressListener(imageFeaturesProgressListener);
 
 				for(FeatureCalculator f : featureCalculators)
@@ -261,10 +259,10 @@ public class Utility
 					{
 
 						case GRAY_8_BIT:
-							outputStack.addSlice(f.getDescription(),((byte[][]) features.getFeaturePixels(0,0,0,f))[0]);
+							outputStack.addSlice(f.getDescriptionWithTags(),((byte[][]) features.getFeaturePixels(z,t,f))[0]);
 							break;
 						case GRAY_16_BIT:
-							outputStack.addSlice(f.getDescription(),((short[][]) features.getFeaturePixels(0,0,0,f))[0]);
+							outputStack.addSlice(f.getDescriptionWithTags(),((short[][]) features.getFeaturePixels(z,t,f))[0]);
 							break;
 						default:
 							throw new RuntimeException("Unsupported pixel type: "+pixelType);
@@ -528,8 +526,12 @@ public class Utility
 		sb.append("\n\nFeatures used:\n");
 
 		for(FeatureCalculator f :classifier.getFeatures())
-			sb.append(f.getDescription()).append("\n");
+			sb.append(f.getDescriptionWithTags()).append("\n");
 
 		return sb.toString();
 	}
+
+    public static int calculateNumMergedChannels(int numChannels) {
+        return (1 << numChannels) - 1;
+    }
 }

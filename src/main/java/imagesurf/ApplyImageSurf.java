@@ -69,7 +69,7 @@ public class ApplyImageSurf implements Command{
 		final ImageJ ij = net.imagej.Main.launch(args);
 
 		final Dataset dataset =
-				ij.dataset().open("/Users/omaraa/Desktop/imageSURF test/images/137964 A.ome-9.tif");
+				ij.dataset().open("/home/omaraa/Downloads/imagesurf-2-channel-plaque/training/001.tif");
 		ij.ui().show(dataset);
 
 		ij.command().run(ApplyImageSurf.class, true);
@@ -80,11 +80,16 @@ public class ApplyImageSurf implements Command{
 	{
 		try
 		{
-			if(image.getNChannels()>1)
-				throw new RuntimeException("ImageSURF does not yet support multi-channel images.");
-
 			final ImageSurfClassifier imageSurfClassifier = (ImageSurfClassifier) Utility.deserializeObject(classifierFile, true);
 			final ImageFeatures features = new ImageFeatures(image);
+
+			if (imageSurfClassifier.getPixelType() != features.pixelType)
+				throw new Exception("Classifier pixel type (" +
+						imageSurfClassifier.getPixelType() + ") does not match image pixel type (" + features.pixelType + ")");
+
+			if (imageSurfClassifier.getNumChannels() != features.numChannels)
+				throw new Exception("Classifier trained for "+imageSurfClassifier.getNumChannels()+" channels. Image has "+features.numChannels+" - cannot segment.");
+
 			final ImageStack outputStack = Utility.segmentImage(imageSurfClassifier, features, image, statusService);
 
 			image.setStack(outputStack);
