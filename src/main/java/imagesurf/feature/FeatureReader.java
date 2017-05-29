@@ -56,4 +56,6 @@ public interface FeatureReader
 	int getNumInstances();
 	int getNumFeatures();
 	int getClassIndex();
+
+	int getNumClasses();
 }

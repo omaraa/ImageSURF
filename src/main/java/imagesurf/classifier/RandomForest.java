@@ -147,6 +147,11 @@ public class RandomForest implements Serializable
 		{
 			return reader.getClassIndex();
 		}
+
+		@Override
+		public int getNumClasses() {
+			return reader.getNumClasses();
+		}
 	}
 
 	public interface ProgressListener
@@ -465,7 +470,7 @@ public class RandomForest implements Serializable
 		this.numAttributes = numAttributes;
 	}
 
-	private int getNumClasses()
+	public int getNumClasses()
 	{
 		return numClasses;
 	}

@@ -201,6 +201,21 @@ public class Utility
 		final ImageStack outputStack = new ImageStack(image.getWidth(), image.getHeight());
 		final int numPixels = image.getWidth()*image.getHeight();
 
+		final int numClasses = randomForest.getNumClasses();
+		byte[] classColors = new byte[numClasses];
+		{
+			classColors[0] = 0;
+			classColors[classColors.length-1] = (byte) 0xff;
+
+			if(numClasses > 2)
+			{
+				int interval = 0xff/(numClasses - 1);
+				for(int i=1;i<classColors.length-1;i++)
+					classColors[i] = (byte) (interval*i);
+			}
+		}
+
+
 		int currentSlice = 1;
 		for(int z = 0; z< image.getNSlices(); z++)
 			for(int t = 0; t< image.getNFrames(); t++)
@@ -227,7 +242,7 @@ public class Utility
 
 				for(int i=0;i<numPixels;i++)
 				{
-					segmentationPixels[i] = (byte) (classes[i] == 0 ? 0 : 0xff);
+					segmentationPixels[i] = classColors[classes[i]];
 				}
 
 				outputStack.addSlice("", segmentationPixels);

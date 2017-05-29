@@ -754,10 +754,18 @@ public class ImageFeatures implements Serializable
 		private final int classIndex;
 		private final byte[][] values;
 
+		private final int numClasses;
+
 		public ByteReader(byte[][] featurePixels, int classIndex)
 		{
 			this.values = featurePixels;
 			this.classIndex = classIndex;
+
+			Set<Byte> classes = new HashSet<>();
+			for(byte b :featurePixels[classIndex])
+				classes.add(b);
+
+			numClasses = classes.size();
 		}
 
 		@Override
@@ -801,6 +809,11 @@ public class ImageFeatures implements Serializable
 			return classIndex;
 		}
 
+		@Override
+		public int getNumClasses() {
+			return numClasses;
+		}
+
 		public byte[][] getValues()
 		{
 			return values;
@@ -812,11 +825,23 @@ public class ImageFeatures implements Serializable
 		private static final int BIT_MASK = 0xffff;
 		private final int classIndex;
 		private final short[][] values;
+		private final int numClasses;
+
+		@Override
+		public int getNumClasses() {
+			return numClasses;
+		}
 
 		public ShortReader(short[][] featurePixels, int classIndex)
 		{
 			this.values = featurePixels;
 			this.classIndex = classIndex;
+
+			Set<Short> classes = new HashSet<>();
+			for(short s :featurePixels[classIndex])
+				classes.add(s);
+
+			numClasses = classes.size();
 		}
 
 		@Override
