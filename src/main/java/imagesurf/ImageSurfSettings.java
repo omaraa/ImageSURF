@@ -33,7 +33,7 @@ import org.scijava.widget.NumberWidget;
  *
  * @author Aidan O'Mara
  */
-@Plugin(type = Command.class, menuPath = "Plugins>Segmentation>ImageSURF>Advanced>ImageSURF Classifier Settings")
+@Plugin(type = Command.class, menuPath = "Plugins>Segmentation>ImageSURF>1. ImageSURF Classifier Settings")
 
 public class ImageSurfSettings implements Command
 {

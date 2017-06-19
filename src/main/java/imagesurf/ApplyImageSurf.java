@@ -39,7 +39,7 @@ import io.scif.services.DatasetIOService;
 import imagesurf.util.Utility;
 
 @Plugin(type = Command.class, headless = true,
-	menuPath = "Plugins>Segmentation>ImageSURF>Apply ImageSURF Classifier")
+	menuPath = "Plugins>Segmentation>ImageSURF>4a. Apply ImageSURF Classifier")
 public class ApplyImageSurf implements Command{
 
 	@Parameter

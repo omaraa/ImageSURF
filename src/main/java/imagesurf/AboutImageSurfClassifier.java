@@ -13,7 +13,7 @@ import org.scijava.plugin.Plugin;
 import java.io.File;
 import java.io.IOException;
 
-@Plugin(type = Command.class, menuPath = "Plugins>Segmentation>ImageSURF>Get Classifier Details",
+@Plugin(type = Command.class, menuPath = "Plugins>Segmentation>ImageSURF>Advanced>Get Classifier Details",
 		headless = true)
 public class AboutImageSurfClassifier implements Command {
 

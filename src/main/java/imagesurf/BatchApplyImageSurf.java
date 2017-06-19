@@ -42,7 +42,7 @@ import java.io.FileFilter;
 import java.io.IOException;
 
 @Plugin(type = Command.class, headless = true,
-	menuPath = "Plugins>Segmentation>ImageSURF>Batch Apply ImageSURF Classifier")
+	menuPath = "Plugins>Segmentation>ImageSURF>4b. Batch Apply ImageSURF Classifier")
 public class BatchApplyImageSurf implements Command{
 
 	@Parameter

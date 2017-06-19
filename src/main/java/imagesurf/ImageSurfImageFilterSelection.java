@@ -37,11 +37,11 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * Runs the Plugins::Segmentation::ImageSURF::Advanced::ImageSURF Filter Selection dialog.
+ * Runs the Plugins::Segmentation::ImageSURF::Advanced::ImageSURF Feature Selection dialog.
  *
  * @author Aidan O'Mara
  */
-@Plugin(type = Command.class, menuPath = "Plugins>Segmentation>ImageSURF>Advanced>Select ImageSURF Filters")
+@Plugin(type = Command.class, menuPath = "Plugins>Segmentation>ImageSURF>2. Select ImageSURF Features")
 
 public class ImageSurfImageFilterSelection implements Command
 {
@@ -71,7 +71,8 @@ public class ImageSurfImageFilterSelection implements Command
 	@Parameter(label = "Range", type = ItemIO.INPUT,	description = "The difference between the maximum and minimum pixel values in the near neighborhood of the target pixel.")
 	private boolean range = true;
 
-	@Parameter(label = "Gaussian", type = ItemIO.INPUT,	description = "Applies Gaussian smoothing to the image.")
+	@Parameter(label = "Gaussian blur", type = ItemIO.INPUT,	description = "Applies Gaussian smoothing to the " +
+			"image.")
 	private boolean gaussian = true;
 
 	@Parameter(label = "Difference of Gaussians (Edge detection)", type = ItemIO.INPUT,	description = "Difference of two Gaussian filters with different sigma. ")
@@ -90,7 +91,8 @@ public class ImageSurfImageFilterSelection implements Command
 			"WARNING: The median filter is computationally expensive and may substantially increase the processing time, especially when calculated with a large radius.")
 	private boolean differenceFromMedian = false;
 
-	@Parameter(label = "Difference from Gaussian", type = ItemIO.INPUT,	description = "Difference between the target pixel value and the Gaussian filtered pixel value in the near neighborhood of the target pixel.")
+	@Parameter(label = "Difference from Gaussian blur", type = ItemIO.INPUT,	description = "Difference between the" +
+			" target pixel value and the Gaussian filtered pixel value in the near neighborhood of the target pixel.")
 	private boolean differenceFromGaussian = true;
 
 
