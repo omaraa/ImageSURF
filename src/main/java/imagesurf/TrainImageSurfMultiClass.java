@@ -52,7 +52,7 @@ import java.util.*;
 import java.util.stream.IntStream;
 
 @Plugin(type = Command.class, headless = true,
-		menuPath = "Plugins>Segmentation>ImageSURF>Train ImageSURF Classifier (n Classes)")
+		menuPath = "Plugins>Segmentation>ImageSURF>Train ImageSURF Classifier")
 public class TrainImageSurfMultiClass implements Command{
 
 	private static final String AFTER_TRAINING_OPTION_NOTHING = "Do nothing";

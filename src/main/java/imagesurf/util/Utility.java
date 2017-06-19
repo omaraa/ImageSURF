@@ -482,6 +482,8 @@ public class Utility
 	{
 		switch (imagePlus.getType())
 		{
+			case ImagePlus.COLOR_256:
+			case ImagePlus.COLOR_RGB:
 			case ImagePlus.GRAY8:
 				return PixelType.GRAY_8_BIT;
 
@@ -490,10 +492,6 @@ public class Utility
 
 			case ImagePlus.GRAY32:
 				throw new IllegalArgumentException("32-bit grayscale images are not yet supported.");
-
-			case ImagePlus.COLOR_256:
-			case ImagePlus.COLOR_RGB:
-				throw new IllegalArgumentException("Color images are not yet supported.");
 
 			default:
 				throw new IllegalArgumentException("Image type not supported.");
