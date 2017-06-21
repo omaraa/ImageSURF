@@ -151,6 +151,34 @@ public class TrainImageSurfMultiClass implements Command{
 		if(imagePattern == null)
 			imagePattern = "";
 
+		if(unlabelledImagePath == null)
+			unlabelledImagePath = rawImagePath;
+
+		if(rawImagePath == null || labelPath == null)
+			throw new IllegalArgumentException("Paths must be set for both raw images and annotated images.");
+
+		if(!rawImagePath.exists())
+			throw new IllegalArgumentException("Raw image path '"+rawImagePath.getAbsolutePath()+"' does not exist.");
+
+		if(!unlabelledImagePath.exists())
+			throw new IllegalArgumentException("Un-annotated image path '"+unlabelledImagePath.getAbsolutePath()
+					+"' does not exist.");
+
+		if(!labelPath.exists())
+			throw new IllegalArgumentException("Annotated image path '"+labelPath.getAbsolutePath()+"' does" +
+					" not exist.");
+
+		if(!rawImagePath.canRead())
+			throw new IllegalArgumentException("Raw image path '"+rawImagePath.getAbsolutePath()+"' can not be read.");
+
+		if(!unlabelledImagePath.canRead())
+			throw new IllegalArgumentException("Un-annotated image path '"+unlabelledImagePath.getAbsolutePath()
+					+"' can not be read.");
+
+		if(!labelPath.canRead())
+			throw new IllegalArgumentException("Annotated image path '"+labelPath.getAbsolutePath()
+					+"' can not be read.");
+
 		labelFiles = labelPath.listFiles(imageLabelFileFilter);
 		unlabelledFiles = Arrays.stream(labelFiles)
 				.map((l) -> new File(unlabelledImagePath, l.getName()))
@@ -639,7 +667,16 @@ public class TrainImageSurfMultiClass implements Command{
 				ImagePlus imagePlus = new ImagePlus(rawImageFiles[imageIndex].getAbsolutePath());
 
 				if(imagePlus.getType() == ImagePlus.COLOR_RGB)
-					rawImage = new CompositeImage(imagePlus, CompositeImage.GRAYSCALE);
+				{
+					if(Utility.isGrayScale(imagePlus))
+					{
+						rawImage = new ImagePlus(imagePlus.getTitle(), imagePlus.getChannelProcessor());
+					}
+					else
+					{
+						rawImage = new CompositeImage(imagePlus, CompositeImage.GRAYSCALE);
+					}
+				}
 				else
 					rawImage = imagePlus;
 			}
@@ -813,15 +850,20 @@ public class TrainImageSurfMultiClass implements Command{
 			int[] classOrder = IntStream.range(0, classColors.keySet().size()).toArray();
 			Primitive.sort(classOrder, (i, i1) -> inverseClassColors.get(i1) - inverseClassColors.get(i));
 
-			System.out.println("classcolors keyset");
-			for(Integer i : classColors.keySet())
-				System.out.println(Integer.toHexString(i)+" : "+classColors.get(i));
-
-			System.out.println("classorder: "+Arrays.toString(classOrder));
+//			System.out.println("classcolors keyset");
+//			for(Integer i : classColors.keySet())
+//				System.out.println(Integer.toHexString(i)+" : "+classColors.get(i));
+//
+//			System.out.println("classorder: "+Arrays.toString(classOrder));
 
 			int[] finalClassOrder = new int[classOrder.length];
 			for(int i=0;i<classOrder.length;i++)
 				finalClassOrder[classOrder[i]] = i;
+
+			if(classOrder.length > 127)
+				throw new RuntimeException("Detected "+classOrder.length+" classes. Maximum allowed is 128. Is there " +
+						"a discrepancy between pixel values in the annotated and un-annotated images? This may be " +
+						"caused by differing colour profiles.");
 
 			switch (pixelType)
 			{
