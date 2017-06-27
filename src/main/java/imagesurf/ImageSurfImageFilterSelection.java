@@ -175,23 +175,23 @@ public class ImageSurfImageFilterSelection implements Command
 			throw new IllegalArgumentException("pixelType is null.");
 
 		List<Class> toExclude = new ArrayList<>();
-		if(!prefs.getBoolean(ImageSurfSettings.IMAGESURF_USE_IDENTITY, false))
+		if(!prefs.getBoolean(ImageSurfSettings.IMAGESURF_USE_IDENTITY, true))
 			toExclude.add(Identity.class);
-		if(!prefs.getBoolean(ImageSurfSettings.IMAGESURF_USE_MEAN, false))
+		if(!prefs.getBoolean(ImageSurfSettings.IMAGESURF_USE_MEAN, true))
 			toExclude.add(Mean.class);
-		if(!prefs.getBoolean(ImageSurfSettings.IMAGESURF_USE_MIN, false))
+		if(!prefs.getBoolean(ImageSurfSettings.IMAGESURF_USE_MIN, true))
 			toExclude.add(Min.class);
-		if(!prefs.getBoolean(ImageSurfSettings.IMAGESURF_USE_MAX, false))
+		if(!prefs.getBoolean(ImageSurfSettings.IMAGESURF_USE_MAX, true))
 			toExclude.add(Max.class);
 		if(!prefs.getBoolean(ImageSurfSettings.IMAGESURF_USE_MEDIAN, false))
 			toExclude.add(Median.class);
-		if(!prefs.getBoolean(ImageSurfSettings.IMAGESURF_USE_STANDARD_DEVIATION, false))
+		if(!prefs.getBoolean(ImageSurfSettings.IMAGESURF_USE_STANDARD_DEVIATION, true))
 			toExclude.add(StandardDeviation.class);
-		if(!prefs.getBoolean(ImageSurfSettings.IMAGESURF_USE_RANGE, false))
+		if(!prefs.getBoolean(ImageSurfSettings.IMAGESURF_USE_RANGE, true))
 			toExclude.add(Range.class);
-		if(!prefs.getBoolean(ImageSurfSettings.IMAGESURF_USE_GAUSSIAN, false))
+		if(!prefs.getBoolean(ImageSurfSettings.IMAGESURF_USE_GAUSSIAN, true))
 			toExclude.add(Gaussian.class);
-		if(!prefs.getBoolean(ImageSurfSettings.IMAGESURF_USE_LOCAL_INTENSITY, false))
+		if(!prefs.getBoolean(ImageSurfSettings.IMAGESURF_USE_LOCAL_INTENSITY, true))
 			toExclude.add(LocalIntensity.class);
 		if(!prefs.getBoolean(ImageSurfSettings.IMAGESURF_USE_ENTROPY, false))
 			toExclude.add(Entropy.class);
@@ -204,15 +204,15 @@ public class ImageSurfImageFilterSelection implements Command
 						DifferenceOf diff = (DifferenceOf) f;
 						Class[] classes = diff.getFeatureCalculatorClasses();
 
-						if(!prefs.getBoolean(ImageSurfSettings.IMAGESURF_USE_DIFFERENCE_FROM_MEAN, false)
+						if(!prefs.getBoolean(ImageSurfSettings.IMAGESURF_USE_DIFFERENCE_FROM_MEAN, true)
 							&& classes[0].equals(Identity.class) && classes[1].equals(Mean.class))
 							return false;
 
-						if(!prefs.getBoolean(ImageSurfSettings.IMAGESURF_USE_DIFFERENCE_FROM_MIN, false)
+						if(!prefs.getBoolean(ImageSurfSettings.IMAGESURF_USE_DIFFERENCE_FROM_MIN, true)
 								&& classes[0].equals(Identity.class) && classes[1].equals(Min.class))
 							return false;
 
-						if(!prefs.getBoolean(ImageSurfSettings.IMAGESURF_USE_DIFFERENCE_FROM_MAX, false)
+						if(!prefs.getBoolean(ImageSurfSettings.IMAGESURF_USE_DIFFERENCE_FROM_MAX, true)
 								&& classes[0].equals(Identity.class) && classes[1].equals(Max.class))
 							return false;
 
@@ -220,11 +220,11 @@ public class ImageSurfImageFilterSelection implements Command
 								&& classes[0].equals(Identity.class) && classes[1].equals(Median.class))
 							return false;
 
-						if(!prefs.getBoolean(ImageSurfSettings.IMAGESURF_USE_DIFFERENCE_FROM_GAUSSIAN, false)
+						if(!prefs.getBoolean(ImageSurfSettings.IMAGESURF_USE_DIFFERENCE_FROM_GAUSSIAN, true)
 								&& classes[0].equals(Identity.class) && classes[1].equals(Gaussian.class))
 							return false;
 
-						if(!prefs.getBoolean(ImageSurfSettings.IMAGESURF_USE_DIFFERENCE_OF_GAUSSIANS, false)
+						if(!prefs.getBoolean(ImageSurfSettings.IMAGESURF_USE_DIFFERENCE_OF_GAUSSIANS, true)
 								&& classes[0].equals(Gaussian.class) && classes[1].equals(Gaussian.class))
 							return false;
 
