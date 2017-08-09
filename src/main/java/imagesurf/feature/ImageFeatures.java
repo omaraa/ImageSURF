@@ -695,14 +695,24 @@ public class ImageFeatures implements Serializable
 
 	public void serialize(Path path) throws Exception
 	{
-		ImageFeatures toSerialize = new ImageFeatures(this);
-		toSerialize.removeEasilyComputedFeatures();
+		ImageFeatures copy = new ImageFeatures(this);
+		copy.removeEasilyComputedFeatures();
 
-
+		ImageFeatures toSerialize = copy;
 		Utility.serializeObject(toSerialize, path.toFile(), false);
 	}
 
 	private void removeEasilyComputedFeatures()
+	{
+		Collection<FeatureCalculator> toRemove = getEasilyComputedFeatures();
+
+		for(Map<FeatureCalculator, Object> featureCache : features)
+			for(FeatureCalculator f : toRemove)
+				if(featureCache.containsKey(f))
+					featureCache.remove(f);
+	}
+
+	public Collection<FeatureCalculator> getEasilyComputedFeatures()
 	{
 		Collection<FeatureCalculator> toRemove = getFeatures();
 		Collection<FeatureCalculator> toSave = toRemove.stream()
@@ -735,12 +745,8 @@ public class ImageFeatures implements Serializable
 		toSave.removeAll(toRemove);
 
 		toRemove.remove(Identity.get());
-		toSave.add(Identity.get());
 
-		for(Map<FeatureCalculator, Object> featureCache : features)
-			for(FeatureCalculator f : toRemove)
-				if(featureCache.containsKey(f))
-					featureCache.remove(f);
+		return toRemove;
 	}
 
 	public static ImageFeatures deserialize(Path path) throws Exception

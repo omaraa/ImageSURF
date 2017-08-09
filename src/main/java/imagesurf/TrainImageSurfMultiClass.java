@@ -694,17 +694,22 @@ public class TrainImageSurfMultiClass implements Command{
 				throw new RuntimeException("Training image " + rawImage.getTitle() + " not valid. Image has "+rawImage.getNChannels()+" channels. Expected "+numChannels+".");
 
 			final ImageFeatures imageFeatures;
+			final Collection<FeatureCalculator> savedFeatures;
 			if (featureFiles[imageIndex] == null || !featureFiles[imageIndex].exists())
 			{
 				log.info("Reading image " + (currentImageIndex + 1) + "/" + numImages);
 				imageFeatures = new ImageFeatures(rawImage);
+				savedFeatures = new ArrayList<>(0);
 			}
 			else
 			{
 				statusService.showStatus("Reading features for image " + (currentImageIndex + 1) + "/" + numImages);
 				log.info("Reading features for image " + (currentImageIndex + 1) + "/" + numImages);
 				imageFeatures = ImageFeatures.deserialize(featureFiles[imageIndex].toPath());
+				savedFeatures = imageFeatures.getFeatures();
 			}
+
+
 
 			if (imageIndex == 0 || pixelType == null)
 			{
@@ -734,7 +739,7 @@ public class TrainImageSurfMultiClass implements Command{
 				calculatedFeatures = true;
 			imageFeatures.removeProgressListener(progressListener);
 
-			if (calculatedFeatures && saveCalculatedFeatures)
+			if (calculatedFeatures && saveCalculatedFeatures && !savedFeatures.containsAll(imageFeatures.getEasilyComputedFeatures()))
 			{
 				if(!imageSurfDataPath.exists())
 					imageSurfDataPath.mkdirs();
