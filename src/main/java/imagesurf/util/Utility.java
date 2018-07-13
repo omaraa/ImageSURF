@@ -201,7 +201,7 @@ public class Utility
 		final ImageStack outputStack = new ImageStack(image.getWidth(), image.getHeight());
 		final int numPixels = image.getWidth()*image.getHeight();
 
-		final int numClasses = randomForest.getNumClasses();
+		final int numClasses = randomForest.numClasses;
 		byte[] classColors = new byte[numClasses];
 		{
 			classColors[0] = 0;
@@ -506,12 +506,12 @@ public class Utility
 
 		RandomForest randomForest = classifier.getRandomForest();
 
-		if(null == randomForest || !randomForest.isTrained())
+		if(null == randomForest)
 			return "Classifier does not exist (not trained).";
 
 		StringBuilder sb = new StringBuilder();
 
-		int numAttributes = randomForest.getNumAttributes();
+		int numAttributes = randomForest.numAttributes;
 
 		String bit = "???";
 
@@ -529,9 +529,9 @@ public class Utility
 		sb.append("Random forest was built for ")
 				.append(bit)
 				.append(" images with ")
-				.append(randomForest.getNumTrees())
+				.append(randomForest.numTrees)
 				.append(" trees to a maximum depth of ")
-				.append(randomForest.getMaxDepth())
+				.append(randomForest.maxDepth)
 				.append(" nodes, considering ")
 				.append(numAttributes)
 				.append(" features at each decision node.");

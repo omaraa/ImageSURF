@@ -35,9 +35,6 @@ public class ImageSurfClassifier implements Serializable
 
 	public ImageSurfClassifier(RandomForest randomForest, FeatureCalculator[] features, PixelType pixelType, int numChannels)
 	{
-		if(!randomForest.isTrained())
-			throw new IllegalArgumentException("Classifier has not been trained - cannot use.");
-
 		this.randomForest = randomForest;
 		this.features = Arrays.stream(features).toArray(FeatureCalculator[]::new);
 		this.pixelType = pixelType;
