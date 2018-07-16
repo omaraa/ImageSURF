@@ -123,31 +123,31 @@ public class TrainImageSurfMultiClass implements Command {
     String ImageSURF;
 
     private final RandomForest.ProgressListener randomForestProgressListener = (current, max, message) -> {
-       if(statusService!=null) statusService.showStatus(current, max, message);
+        if (statusService != null) statusService.showStatus(current, max, message);
     };
 
     private final Training.ProgressListener progressListener = new Training.ProgressListener() {
         @Override
         public void logInfo(String message) {
-            if(log!=null)
+            if (log != null)
                 log.info(message);
         }
 
         @Override
         public void logError(String message) {
-            if(log!=null)
+            if (log != null)
                 log.error(message);
         }
 
         @Override
         public void showStatus(int progress, int total, String message) {
-            if(statusService!=null)
+            if (statusService != null)
                 statusService.showStatus(progress, total, message);
         }
 
         @Override
         public void showStatus(String message) {
-            if(statusService!=null)
+            if (statusService != null)
                 statusService.showStatus(message);
         }
     };
@@ -193,16 +193,25 @@ public class TrainImageSurfMultiClass implements Command {
         final Object[] trainingExamples;
         try {
             int examplePortion = prefService.getInt(ImageSurfSettings.IMAGESURF_EXAMPLE_PORTION, ImageSurfSettings.DEFAULT_EXAMPLE_PORTION);
-            trainingExamples = Training.getTrainingExamples(labelFiles, unlabelledFiles, rawImageFiles, featureFiles,
+            trainingExamples = Training.INSTANCE.getTrainingExamples(labelFiles, unlabelledFiles, rawImageFiles, featureFiles,
                     imageSurfDataPath, random, progressListener, examplePortion, saveCalculatedFeatures,
                     pixelType, selectedFeatures);
 
             switch (pixelType) {
                 case GRAY_8_BIT:
-                    reader = new ImageFeatures.ByteReader((byte[][]) trainingExamples, trainingExamples.length - 1);
+
+                    final byte[][] bytes = new byte[trainingExamples.length][];
+                    for (int i = 0; i < bytes.length; i++)
+                        bytes[i] = (byte[]) trainingExamples[i];
+
+                    reader = new ImageFeatures.ByteReader(bytes, trainingExamples.length - 1);
                     break;
                 case GRAY_16_BIT:
-                    reader = new ImageFeatures.ShortReader((short[][]) trainingExamples, trainingExamples.length - 1);
+                    final short[][] shorts = new short[trainingExamples.length][];
+                    for (int i = 0; i < shorts.length; i++)
+                        shorts[i] = (short[]) trainingExamples[i];
+
+                    reader = new ImageFeatures.ShortReader(shorts, trainingExamples.length - 1);
                     break;
                 default:
                     throw new RuntimeException("Pixel type " + pixelType + " not supported.");
@@ -227,7 +236,7 @@ public class TrainImageSurfMultiClass implements Command {
         if (getMaxFeatures() < selectedFeatures.length && getMaxFeatures() > 0) {
             optimalFeatures = selectOptimalFeatures(getMaxFeatures(), reader, builder.build(), selectedFeatures, pixelType);
 
-            final FeatureReader optimisedFeaturesReader = Training.getSelectedFeaturesReader(optimalFeatures, selectedFeatures, trainingExamples, pixelType);
+            final FeatureReader optimisedFeaturesReader = Training.INSTANCE.getSelectedFeaturesReader(optimalFeatures, selectedFeatures, trainingExamples, pixelType);
 
             randomForest = builder.withData(optimisedFeaturesReader).build();
         } else {
@@ -311,13 +320,18 @@ public class TrainImageSurfMultiClass implements Command {
     }
 
     private void logClassDetails(FeatureReader reader, int numClasses) {
+        int unclassified = 0;
         final int[] classCounts = new int[numClasses];
         for (short c : reader.getClasses())
-            classCounts[c]++;
+            if (c < 0 || c == 255)
+                unclassified++;
+            else
+                classCounts[c]++;
 
         log.info("Class examples:");
         for (int i = 0; i < numClasses; i++)
             log.info("\t" + i + ": " + classCounts[i]);
+        log.info("\tUnclassified: " + unclassified);
     }
 
     private void checkParameters() {
@@ -513,7 +527,7 @@ public class TrainImageSurfMultiClass implements Command {
                 numAttributes = 1;
         }
 
-        return  new RandomForest.Builder()
+        return new RandomForest.Builder()
                 .withNumTrees(numTrees)
                 .withMaxDepth(treeDepth)
                 .withNumAttributes(numAttributes)
