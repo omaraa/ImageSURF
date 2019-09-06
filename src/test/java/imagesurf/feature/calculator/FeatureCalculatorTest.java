@@ -19,9 +19,6 @@ package imagesurf.feature.calculator;
 
 import io.scif.img.ImgOpener;
 import io.scif.img.SCIFIOImgPlus;
-import net.imagej.patcher.LegacyInjector;
-import net.imglib2.img.ImgFactory;
-import net.imglib2.img.array.ArrayImgFactory;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
 import org.junit.Before;
 import org.junit.Test;
@@ -35,10 +32,6 @@ import java.util.Map;
 import static org.junit.Assert.assertArrayEquals;
 
 public class FeatureCalculatorTest {
-
-    static {
-        LegacyInjector.preinit();
-    }
 
     private static final ImgOpener imgOpener = new ImgOpener();
 
