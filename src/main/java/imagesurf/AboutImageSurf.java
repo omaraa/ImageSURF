@@ -16,7 +16,7 @@ public class AboutImageSurf implements Command {
 
 	@Override
 	public void run() {
-		ImageSurf = "ABOUT IMAGESURF v1.1.1\n\n" +
+		ImageSurf = "ABOUT IMAGESURF v1.1.3-20190906\n\n" +
 				"ImageSURF (Image Segmentation Using Random Forests) is an ImageJ2 plugin for pixel-based " +
 				"image segmentation that uses an optimised implementation of the random forests machine learning " +
 				"algorithm and a set of selected image features." +
