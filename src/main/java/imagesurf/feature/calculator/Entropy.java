@@ -17,207 +17,59 @@
 
 package imagesurf.feature.calculator;
 
-import ij.gui.OvalRoi;
-import ij.process.ByteProcessor;
-import ij.process.ShortProcessor;
-
 import java.io.Serializable;
-import java.util.Arrays;
-import java.util.Enumeration;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * Reimplementation of entropy filter from WEKA trainable segmentation 20170111
- * https://github.com/fiji/Trainable_Segmentation/blob/master/src/main/java/trainableSegmentation/filters/Entropy_Filter.java
- */
-public class Entropy implements FeatureCalculator, Serializable
+public class Entropy extends HistogramNeighbourhoodCalculator implements Serializable
 {
 	static final long serialVersionUID = 42L;
 
-	private int radius;
+	private static final double log2 = Math.log(2.0);
 
 	public Entropy(int radius)
 	{
-		setRadius(radius);
-	}
-
-	public int getRadius()
-	{
-		return radius;
-	}
-
-	public void setRadius(int radius)
-	{
-		this.radius = radius;
+		super(radius);
 	}
 
 	@Override
-	public FeatureCalculator[] getDependencies()
-	{
-		return new FeatureCalculator[0];
-	}
-
-	@Override
-	public byte[][] calculate(byte[] pixels, int width, int height, Map<FeatureCalculator, byte[][]> calculated)
-	{
-		if(calculated!=null && calculated.containsKey(this))
-			return calculated.get(this);
-
-		pixels = Arrays.copyOf(pixels, pixels.length);
-
-		final int numBins = 256;
-		final double log2 = Math.log(2.0);
+	protected void calculate(PixelReader reader, PixelWriter writer, int width, int height, int[] histogram, Calculator calculator) {
 
 		final int min, max;
 		{
 			int tempMin = Integer.MAX_VALUE;
 			int tempMax = Integer.MIN_VALUE;
-
-				for (byte b : pixels)
-			{
-				int value = 0xff & b;
+			for (int i = 0; i < width * height; i++) {
+				final int value = reader.get(i);
 				if (value < tempMin)
 					tempMin = value;
-				else if (value > tempMax)
+				if (value > tempMax)
 					tempMax = value;
 			}
-
 			min = tempMin;
 			max = tempMax;
 		}
 
-		final ByteProcessor byteProcessor = new ByteProcessor(width, height, pixels);
-		byteProcessor.setHistogramRange( 0, numBins-1 );
-		byteProcessor.setHistogramSize( numBins);
+		final int numBins = histogram.length;
+		final double numBits = reader.numBits();
 
-		byte[] result = new byte[width*height];
+		calculator = h -> {
+			double total = 0;
+			for (int k = min ; k <= max; k++ )
+				total += h[ k ];
 
-		final int size = 2 * radius + 1;
-
-		for(int x=0; x<width; x++)
-		{
-			for(int y=0; y<height; y++)
+			double entropy = 0;
+			for (int k = min ; k < max ; k++ )
 			{
-				final OvalRoi roi = new OvalRoi(x-radius, y-radius, size, size);
-				byteProcessor.setRoi( roi );
-				final int[] histogram = byteProcessor.getHistogram(); // Get histogram from the ROI
-
-				double total = 0;
-				for (int k = min ; k <= max; k++ )
-					total +=histogram[ k ];
-
-				double entropy = 0;
-				for (int k = min ; k < max ; k++ )
+				if (h[k]>0)
 				{
-					if (histogram[k]>0)
-					{
-						double p = histogram[k]/total; // calculate p
-						entropy += -p * Math.log(p)/log2;
-					}
+					double p = h[k]/total; // calculate p
+					entropy += -p * Math.log(p)/log2;
 				}
-
-				//entropy should be a value between 0.0 and 8.0, so scale to fit byte range of 0-255
-				entropy = Math.floor(entropy * ((double)(numBins)/8.0));
-
-				result[width*y+x] = (byte) (0xff & ((int) entropy));
-			}
-		}
-
-
-		byte[][] resultArray = new byte[][] {result};
-
-		if(calculated!=null)
-			calculated.put(this, resultArray);
-
-		return resultArray;
-	}
-
-	@Override
-	public short[][] calculate(short[] pixels, int width, int height, Map<FeatureCalculator, short[][]> calculated)
-	{
-		if(calculated!=null && calculated.containsKey(this))
-			return calculated.get(this);
-
-		pixels = Arrays.copyOf(pixels, pixels.length);
-
-		final int numBins = 1 << 16;
-		final double log2 = Math.log(2.0);
-
-		final int min, max;
-		{
-			int tempMin = Integer.MAX_VALUE;
-			int tempMax = Integer.MIN_VALUE;
-
-			for (short s : pixels)
-			{
-				int value = 0xffff & s;
-				if (value < tempMin)
-					tempMin = value;
-				else if (value > tempMax)
-					tempMax = value;
 			}
 
-			min = tempMin;
-			max = tempMax;
-		}
+			return (int) Math.floor(entropy * ((double)(numBins)/numBits));
+		};
 
-		final ShortProcessor shortProcessor = new ShortProcessor(width, height, pixels, null);
-		shortProcessor.setHistogramRange( 0, numBins-1 );
-		shortProcessor.setHistogramSize( numBins);
-
-		short[] result = new short[width*height];
-
-		final int size = 2 * radius + 1;
-
-		for(int x=0; x<width; x++)
-		{
-			for(int y=0; y<height; y++)
-			{
-				final OvalRoi roi = new OvalRoi(x-radius, y-radius, size, size);
-				shortProcessor.setRoi( roi );
-				final int[] histogram = shortProcessor.getHistogram(); // Get histogram from the ROI
-
-				double total = 0;
-				for (int k = min ; k <= max; k++ )
-					total +=histogram[ k ];
-
-				double entropy = 0;
-				for (int k = min ; k <= max; k++ )
-				{
-					if (histogram[k]>0)
-					{
-						double p = histogram[k]/total; // calculate p
-						entropy += -p * Math.log(p)/log2;
-					}
-				}
-
-				//entropy should be a value between 0.0 and 16, so scale to fit short range of 0-2^16-1
-				entropy = Math.floor(entropy * ((double)(numBins)/16.0));
-
-				result[width*y+x] = (short) (0xffff & ((int) entropy));
-			}
-		}
-
-
-		short[][] resultArray = new short[][] {result};
-
-		if(calculated!=null)
-			calculated.put(this, resultArray);
-
-		return resultArray;
-	}
-
-	@Override
-	public String[] getResultDescriptions()
-	{
-		return new String[] {getDescription()};
-	}
-
-	@Override
-	public int getNumImagesReturned()
-	{
-		return 1;
+		super.calculate(reader, writer, width, height, histogram, calculator);
 	}
 
 	@Override
@@ -227,41 +79,9 @@ public class Entropy implements FeatureCalculator, Serializable
 	}
 
 	@Override
-	public String getDescription()
-	{
-		return getName() + " ("+getRadius() + ')';
-	}
-
-	@Override
 	public FeatureCalculator duplicate()
 	{
-		return new Entropy(radius);
-	}
-
-	private final ConcurrentHashMap<String, Object> tags = new ConcurrentHashMap<>();
-
-	@Override
-	public Object getTag(String tagName)
-	{
-		return tags.get(tagName);
-	}
-
-	@Override
-	public void setTag(String tagName, Object tagValue)
-	{
-		tags.put(tagName, tagValue);
-	}
-
-	@Override
-	public Enumeration<String> getAllTags()
-	{
-		return tags.keys();
-	}
-
-	@Override
-	public void removeTag(String tagName)
-	{
-		tags.remove(tagName);
+		return new Entropy(getRadius());
 	}
 
 	@Override
@@ -274,7 +94,7 @@ public class Entropy implements FeatureCalculator, Serializable
 
 		Entropy entropy = (Entropy) o;
 
-		if (radius != entropy.radius)
+		if (getRadius() != entropy.getRadius())
 			return false;
 		return tags.equals(entropy.tags);
 	}
@@ -282,7 +102,7 @@ public class Entropy implements FeatureCalculator, Serializable
 	@Override
 	public int hashCode()
 	{
-		int result = radius;
+		int result = getRadius();
 		result = 31 * result + tags.hashCode();
 		return result;
 	}

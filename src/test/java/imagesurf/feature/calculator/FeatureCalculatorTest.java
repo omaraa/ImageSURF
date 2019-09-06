@@ -49,11 +49,10 @@ public class FeatureCalculatorTest {
     final int[] radii = new int[]{3, 5, 33};
 
     @Before
-    public void setUp() throws Exception {
+    public void setUp() {
         String imagePath = getClass().getResource("/images/Nomarski-14DIV/raw.png").getFile();
 
-        final ImgFactory<UnsignedByteType> byteImgFactory = new ArrayImgFactory<>();
-        final SCIFIOImgPlus<UnsignedByteType> byteImage = (SCIFIOImgPlus<UnsignedByteType>) imgOpener.openImgs(imagePath, byteImgFactory).get(0);
+        final SCIFIOImgPlus<UnsignedByteType> byteImage = (SCIFIOImgPlus<UnsignedByteType>) imgOpener.openImgs(imagePath).get(0);
 
         bytePixels = new byte[(int) byteImage.size()];
         shortPixels = new short[(int) byteImage.size()];
@@ -72,9 +71,8 @@ public class FeatureCalculatorTest {
     @Test
     public void testCalculateMeans() throws Exception {
         for (int i : radii) {
-            FeatureCalculator featureCalculator = new Median(i);
+            FeatureCalculator featureCalculator = new Mean(i);
             testByteFeatureCalculator(featureCalculator);
-            testShortFeatureCalculator(featureCalculator);
         }
     }
 
@@ -83,6 +81,7 @@ public class FeatureCalculatorTest {
         for (int i : radii) {
             FeatureCalculator featureCalculator = new Median(i);
             testByteFeatureCalculator(featureCalculator);
+            testShortFeatureCalculator(featureCalculator);
         }
     }
 
@@ -91,6 +90,7 @@ public class FeatureCalculatorTest {
         for (int i : radii) {
             FeatureCalculator featureCalculator = new Min(i);
             testByteFeatureCalculator(featureCalculator);
+            testShortFeatureCalculator(featureCalculator);
         }
     }
 
@@ -99,6 +99,7 @@ public class FeatureCalculatorTest {
         for (int i : radii) {
             FeatureCalculator featureCalculator = new Max(i);
             testByteFeatureCalculator(featureCalculator);
+            testShortFeatureCalculator(featureCalculator);
         }
     }
 
@@ -123,6 +124,7 @@ public class FeatureCalculatorTest {
         for (int i : radii) {
             FeatureCalculator featureCalculator = new Range(i);
             testByteFeatureCalculator(featureCalculator);
+            testShortFeatureCalculator(featureCalculator);
         }
     }
 
@@ -243,8 +245,7 @@ public class FeatureCalculatorTest {
         if (!file.exists())
             throw new RuntimeException(file.getAbsolutePath() + " does not exist");
 
-        final ImgFactory<UnsignedByteType> imgFactory = new ArrayImgFactory<>();
-        SCIFIOImgPlus<UnsignedByteType> image = (SCIFIOImgPlus<UnsignedByteType>) imgOpener.openImgs(imagePath, imgFactory).get(0);
+        SCIFIOImgPlus<UnsignedByteType> image = (SCIFIOImgPlus<UnsignedByteType>) imgOpener.openImgs(imagePath).get(0);
 
         byte[] bytes = new byte[(int) image.size()];
         int currentIndex = 0;

@@ -80,7 +80,7 @@ public class ApplyImageSurf implements Command{
 	{
 		try
 		{
-			final ImageSurfClassifier imageSurfClassifier = (ImageSurfClassifier) Utility.deserializeObject(classifierFile, true);
+			final ImageSurfClassifier imageSurfClassifier = (ImageSurfClassifier) Utility.INSTANCE.deserializeObject(classifierFile, true);
 			final ImageFeatures features = new ImageFeatures(image);
 
 			if (imageSurfClassifier.getPixelType() != features.pixelType)
@@ -90,7 +90,7 @@ public class ApplyImageSurf implements Command{
 			if (imageSurfClassifier.getNumChannels() != features.numChannels)
 				throw new Exception("Classifier trained for "+imageSurfClassifier.getNumChannels()+" channels. Image has "+features.numChannels+" - cannot segment.");
 
-			final ImageStack outputStack = Utility.segmentImage(imageSurfClassifier, features, image, statusService);
+			final ImageStack outputStack = Utility.INSTANCE.segmentImage(imageSurfClassifier, features, image, statusService);
 
 			image.setStack(outputStack);
 		}

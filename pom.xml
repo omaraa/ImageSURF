@@ -5,19 +5,25 @@
 		http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 
-	<parent>
-		<groupId>net.imagej</groupId>
-		<artifactId>pom-imagej</artifactId>
-		<version>15.8.0</version>
-		<relativePath />
-	</parent>
+    <parent>
+        <groupId>org.scijava</groupId>
+        <artifactId>pom-scijava</artifactId>
+        <version>26.0.0</version>
+        <relativePath />
+    </parent>
 
 	<groupId>imagesurf</groupId>
 	<artifactId>imagesurf</artifactId>
-	<version>v1.1.1-20170627</version>
+	<version>v1.1.2-20190605</version>
 
 	<name>ImageSURF</name>
 	<description>An ImageJ plugin for pixel-based image segmentation using random forests</description>
+    <url>https://imagej.net/ImageSURF</url>
+    <inceptionYear>2016</inceptionYear>
+    <organization>
+        <name>Fiji</name>
+        <url>https://fiji.sc/</url>
+    </organization>
 
 	<repositories>
 		<repository>
@@ -71,15 +77,38 @@
                         </goals>
                     </execution>
                 </executions>
+                <configuration>
+                    <source>8</source>
+                    <target>8</target>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <version>2.6</version>
+                <executions>
+                    <execution>
+                        <id>make-assembly</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>single</goal>
+                        </goals>
+                        <configuration>
+                            <descriptorRefs>
+                                <descriptorRef>jar-with-dependencies</descriptorRef>
+                            </descriptorRefs>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>
 
-    <inceptionYear>2016</inceptionYear>
     <licenses>
         <license>
-            <name>GNU General Public License (GPL)</name>
-            <url>http://www.gnu.org/licenses/gpl.txt</url>
+            <name>GNU General Public License v2+</name>
+            <url>https://www.gnu.org/licenses/old-licenses/gpl-2.0.html</url>
+            <distribution>repo</distribution>
         </license>
     </licenses>
 
@@ -88,7 +117,23 @@
         <url>https://github.com/omaraa/imagesurf/issues</url>
     </issueManagement>
 
+    <scm>
+        <tag>Dummy</tag>
+    </scm>
+    <ciManagement>
+        <system>Dummy</system>
+    </ciManagement>
+
+    <mailingLists>
+        <mailingList>
+            <name>Image.sc Forum</name>
+            <archive>https://forum.image.sc/tags/imagesurf</archive>
+        </mailingList>
+    </mailingLists>
+
     <properties>
+        <license.licenseName>gpl_v2</license.licenseName>
+        <license.copyrightOwners>Aidan O'Mara</license.copyrightOwners>
         <kotlin.version>1.2.51</kotlin.version>
     </properties>
 
@@ -108,6 +153,14 @@
             </roles>
         </developer>
     </developers>
+
+    <contributors>
+        <contributor>
+            <name>Aidan O'Mara</name>
+            <url>http://imagej.net/User:Omaraa</url>
+            <properties><id>omaraa</id></properties>
+        </contributor>
+    </contributors>
 
 	<dependencies>
 		<dependency>
@@ -136,6 +189,12 @@
             <groupId>org.jetbrains.kotlin</groupId>
             <artifactId>kotlin-test</artifactId>
             <version>${kotlin.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <version>3.6.2</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

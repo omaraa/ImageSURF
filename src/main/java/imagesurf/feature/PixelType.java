@@ -18,10 +18,10 @@
 package imagesurf.feature;
 
 import imagesurf.feature.calculator.*;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 public enum PixelType {
@@ -38,6 +38,24 @@ public enum PixelType {
 			default:
 				throw new IllegalArgumentException("Pixel type not yet implemented: "+this);
 		}
+	}
+
+
+	@NotNull
+	public FeatureCalculator[] getMultiChannelFeatureCalculators(int minRadius, int maxRadius, int numMergedChannels) {
+		FeatureCalculator[] baseCalculators = getAllFeatureCalculators(minRadius, maxRadius);
+
+		List<FeatureCalculator> selectedFeatures = new ArrayList<>(baseCalculators.length * numMergedChannels);
+
+		for (int c = 0; c < numMergedChannels; c++) {
+			for (FeatureCalculator f : baseCalculators) {
+				FeatureCalculator tagged = f.duplicate();
+				tagged.setTag(ImageFeatures.FEATURE_TAG_CHANNEL_INDEX, c);
+				selectedFeatures.add(tagged);
+			}
+		}
+
+		return selectedFeatures.stream().toArray(FeatureCalculator[]::new);
 	}
 
 	public FeatureCalculator[] getAllFeatureCalculators(int minRadius, int maxRadius)

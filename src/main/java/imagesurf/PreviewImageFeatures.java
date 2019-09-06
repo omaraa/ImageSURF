@@ -19,15 +19,11 @@ package imagesurf;
 
 import ij.ImagePlus;
 import ij.ImageStack;
-import ij.io.FileSaver;
-import imagesurf.classifier.ImageSurfClassifier;
 import imagesurf.feature.ImageFeatures;
 import imagesurf.feature.PixelType;
 import imagesurf.feature.calculator.FeatureCalculator;
 import imagesurf.util.Utility;
-import io.scif.services.DatasetIOService;
 import net.imagej.Dataset;
-import net.imagej.DatasetService;
 import net.imagej.ImageJ;
 import org.scijava.ItemIO;
 import org.scijava.app.StatusService;
@@ -36,10 +32,6 @@ import org.scijava.log.LogService;
 import org.scijava.plugin.Parameter;
 import org.scijava.plugin.Plugin;
 import org.scijava.prefs.PrefService;
-
-import java.io.File;
-import java.util.ArrayList;
-import java.util.List;
 
 @Plugin(type = Command.class, headless = true,
 	menuPath = "Plugins>Segmentation>ImageSURF>Advanced>Preview Image Features")
@@ -78,32 +70,19 @@ public class PreviewImageFeatures implements Command{
 			final int maxFeatureRadius = prefs.getInt(ImageSurfSettings.IMAGESURF_MAX_FEATURE_RADIUS, ImageSurfSettings.DEFAULT_MAX_FEATURE_RADIUS);
 
 			final ImageFeatures features = new ImageFeatures(image);
-			FeatureCalculator[] baseCalculators = ImageSurfImageFilterSelection.getFeatureCalculators(features.pixelType,
-					minFeatureRadius, maxFeatureRadius, prefs);
+			FeatureCalculator[] featureCalculators = ImageSurfImageFilterSelection.getFeatureCalculators(features.pixelType,
+					minFeatureRadius, maxFeatureRadius, features.numMergedChannels, prefs);
 
-			List<FeatureCalculator> featureCalculatorsList = new ArrayList<>(baseCalculators.length*features.numMergedChannels);
-
-			for(int c = 0 ; c < features.numMergedChannels; c++)
-			{
-				for(FeatureCalculator f : baseCalculators)
-				{
-					FeatureCalculator tagged = f.duplicate();
-					tagged.setTag(ImageFeatures.FEATURE_TAG_CHANNEL_INDEX, c);
-					featureCalculatorsList.add(tagged);
-				}
-			}
-
-			System.out.println("Selected filters: ");
-			for(FeatureCalculator f : featureCalculatorsList)
-				System.out.println(f.getDescriptionWithTags());
-
-			if(featureCalculatorsList.size() == 0)
+			if(featureCalculators.length == 0)
 				throw new RuntimeException("No image filters have been selected.");
 
-			PixelType pixelType = Utility.getPixelType(image);
+			System.out.println("Selected filters: ");
+			for(FeatureCalculator f : featureCalculators)
+				System.out.println(f.getDescriptionWithTags());
 
-			final ImageStack imageStack = Utility.calculateImageFeatures(featureCalculatorsList.stream().toArray
-							(FeatureCalculator[]::new),
+			PixelType pixelType = Utility.INSTANCE.getPixelType(image);
+
+			final ImageStack imageStack = Utility.INSTANCE.calculateImageFeatures(featureCalculators,
 					features,
 			statusService, pixelType);
 			image.setStack(imageStack);

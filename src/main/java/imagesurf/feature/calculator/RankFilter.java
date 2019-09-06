@@ -62,53 +62,33 @@ public class RankFilter implements Serializable
 	private final float minMaxOutliersSign;
 
 	public byte[] rank(final byte[] pixels, final int width, final int height) {
+		final LineReaderWriter lineReaderWriter = byteLineReaderWriter();
 
-		final int cacheWidth = width+2*kRadius;
-
-		// 'cache' is the input buffer. Each line y in the image is mapped onto cache line y%cacheHeight
-		final float[] cache = new float[cacheWidth*kHeight];
-
-		final int xmin = 0 - kRadius;
-		final int xmax = width + kRadius;
-		final int[]kernel = makeKernel(lineRadii, cacheWidth);
-
-		final int padLeft = xmin<0 ? -xmin : 0;
-		final int padRight = xmax>width? xmax-width : 0;
-		final int xminInside = xmin>0 ? xmin : 0;
-		final int xmaxInside = xmax<width ? xmax : width;
-		final int widthInside = xmaxInside - xminInside;
-
-		final double[] sums = filterType == Type.MEAN ? new double[2] : null;
-		final float[] medianAboveBuffer = (filterType == Type.MEDIAN) ? new float[kNPoints] : null;
-		final float[] medianBelowBuffer = (filterType == Type.MEDIAN) ? new float[kNPoints] : null;
-
-		final float[] values = new float[width];
-
-		int previousY = kHeight /2- kHeight;
-
-		for (int y=0;y< height;y++)
-		{
-			for (int i=0; i<kernel.length; i++)	//shift kernel pointers to new line
-				kernel[i] = (kernel[i] + cacheWidth *(y-previousY))% cache.length;
-
-			previousY = y;
-
-			int yStartReading = y==0 ? Math.max(0- kHeight /2, 0) : y+ kHeight /2;
-			for (int yNew = yStartReading; yNew<=y+ kHeight /2; yNew++)
-			{ //only 1 line except at start
-				readLineToCacheOrPad(pixels, width, height, xminInside, widthInside,
-						cache, cacheWidth, padLeft, padRight, yNew);
-			}
-
-			int cacheLineP = cacheWidth * (y % kHeight) + kRadius;	//points to pixel (0, y)
-			filterLine(values, width, cache, kernel, cacheLineP,	sums, medianAboveBuffer, medianBelowBuffer);
-			writeLineToPixels(values, pixels, y*width, width);	// W R I T E
-		}
-
-		return pixels;
+		return (byte[]) getPixels(pixels, width, height, lineReaderWriter);
 	}
 
 	public short[] rank(final short[] pixels, final int width, final int height) {
+		final LineReaderWriter lineReaderWriter = shortLineReaderWriter();
+
+		return (short[]) getPixels(pixels, width, height, lineReaderWriter);
+	}
+
+	private Object getPixels(final Object pixels, final int width, final int height, final LineReaderWriter lineReaderWriter) {
+		final LineFilter lineFilter;
+		switch (filterType) {
+			case MEAN:
+				lineFilter = meanFilter();
+				break;
+			case MIN:
+			case MAX:
+				lineFilter = minMaxFilter();
+				break;
+			case MEDIAN:
+				lineFilter = getMedianFilter();
+				break;
+			default:
+				throw new RuntimeException("Type "+filterType+" not implemented.");
+		}
 
 		final int cacheWidth = width+2*kRadius;
 
@@ -126,8 +106,6 @@ public class RankFilter implements Serializable
 		final int widthInside = xmaxInside - xminInside;
 
 		final double[] sums = filterType == Type.MEAN ? new double[2] : null;
-		final float[] medianAboveBuffer = (filterType == Type.MEDIAN) ? new float[kNPoints] : null;
-		final float[] medianBelowBuffer = (filterType == Type.MEDIAN) ? new float[kNPoints] : null;
 
 		final float[] values = new float[width];
 
@@ -143,48 +121,96 @@ public class RankFilter implements Serializable
 			int yStartReading = y==0 ? Math.max(0- kHeight /2, 0) : y+ kHeight /2;
 			for (int yNew = yStartReading; yNew<=y+ kHeight /2; yNew++)
 			{ //only 1 line except at start
-				readLineToCacheOrPad(pixels, width, height, xminInside, widthInside,
+				lineReaderWriter.readLineToCacheOrPad(pixels, width, height, xminInside, widthInside,
 						cache, cacheWidth, padLeft, padRight, yNew);
 			}
 
 			int cacheLineP = cacheWidth * (y % kHeight) + kRadius;	//points to pixel (0, y)
-			filterLine(values, width, cache, kernel, cacheLineP,	sums, medianAboveBuffer, medianBelowBuffer);
-			writeLineToPixels(values, pixels, y*width, width);	// W R I T E
+			lineFilter.filterLine(values, width, cache, cacheLineP, kernel, sums);
+			lineReaderWriter.writeLineToPixels(values, pixels, y*width, width);
 		}
 
 		return pixels;
 	}
 
-	private void filterLine(final float[] values, final int width, final float[] cache, final int[] kernel, final int cacheLineP,
-	                        final double[] sums, final float[] medianBuf1, final float[] medianBuf2) {
+	private interface LineFilter {
+		void filterLine(final float[] values, final int width, final float[] cache, final int cacheLineP, final int[] kernel,
+						final double[] sums);
+	}
 
-		float max = 0f;
-		float median = Float.isNaN(cache[cacheLineP]) ? 0 : cache[cacheLineP];	// a first guess
-		boolean fullCalculation = true;
-		for (int x=0; x<width; x++) {							// x is with respect to 0
-			if (fullCalculation)
-			{
-				fullCalculation = smallKernel;	//for small kernel, always use the full area, not incremental algorithm
-				switch (filterType)
-				{
-					case MIN:
-					case MAX:
-						max = getAreaMax(cache, x, kernel, 0, -Float.MAX_VALUE, minMaxOutliersSign);
-						values[x] = max*minMaxOutliersSign;
+	private final LineFilter meanFilter() {
+		return new LineFilter() {
 
-						continue;
-
-					case MEAN:
+			@Override
+			public void filterLine(float[] values, int width, float[] cache, final int cacheLineP, int[] kernel, double[] sums) {
+				boolean fullCalculation = true;
+				for (int x = 0; x < width; x++) {                            // x is with respect to 0
+					if (fullCalculation) {
+						fullCalculation = smallKernel;    //for small kernel, always use the full area, not incremental algorithm
 						getAreaSums(cache, x, kernel, sums);
-						break;
+					} else {
+						addSideSums(cache, x, kernel, sums);
+						if (Double.isNaN(sums[0])) //avoid perpetuating NaNs into remaining line
+							fullCalculation = true;
+
+					}
+
+					values[x] = (float) (sums[0] / kNPoints);
 				}
 			}
-			else
-			{
-				switch (filterType)
-				{
-					case MIN:
-					case MAX:
+
+			/**
+			 * Get sum of values and values squared within the kernel area.
+			 * x between 0 and cacheWidth-1
+			 * Output is written to array sums[0] = sum; sums[1] = sum of squares
+			 */
+			private void getAreaSums(final float[] cache, int xCache0, final int[] kernel, final double[] sums) {
+				double sum = 0, sum2 = 0;
+				for (int kk = 0; kk < kernel.length; kk++) {    // y within the cache stripe (we have 2 kernel pointers per cache line)
+					for (int p = kernel[kk++] + xCache0; p <= kernel[kk] + xCache0; p++) {
+						final float v = cache[p];
+						sum += v;
+						sum2 += v * v;
+					}
+				}
+				sums[0] = sum;
+				sums[1] = sum2;
+			}
+
+			/**
+			 * Add all values and values squared at the right border inside minus at the left border outside the kernal area.
+			 * Output is added or subtracted to/from array sums[0] += sum; sums[1] += sum of squares  when at
+			 * the right border, minus when at the left border
+			 */
+			private void addSideSums(final float[] cache, final int xCache0, final int[] kernel, final double[] sums) {
+				double sum = 0, sum2 = 0;
+				for (int kk = 0; kk < kernel.length; /*k++;k++ below*/) {
+					float v = cache[kernel[kk++] + (xCache0 - 1)];
+					sum -= v;
+					sum2 -= v * v;
+					v = cache[kernel[kk++] + xCache0];
+					sum += v;
+					sum2 += v * v;
+				}
+				sums[0] += sum;
+				sums[1] += sum2;
+			}
+		};
+	}
+
+	private LineFilter minMaxFilter() {
+		return new LineFilter() {
+			@Override
+			public void filterLine(float[] values, int width, float[] cache, int cacheLineP, int[] kernel, double[] sums) {
+				float max = 0f;
+				boolean fullCalculation = true;
+				for (int x = 0; x < width; x++) {                            // x is with respect to 0
+					if (fullCalculation) {
+						fullCalculation = smallKernel;    //for small kernel, always use the full area, not incremental algorithm
+						max = getAreaMax(cache, x, kernel, 0, -Float.MAX_VALUE, minMaxOutliersSign);
+						values[x] = max * minMaxOutliersSign;
+
+					} else {
 						final float newPointsMax = getSideMax(cache, x, kernel, true, minMaxOutliersSign);
 						if (newPointsMax >= max) { //compare with previous maximum 'max'
 							max = newPointsMax;
@@ -194,56 +220,129 @@ public class RankFilter implements Serializable
 								max = getAreaMax(cache, x, kernel, 1, newPointsMax, minMaxOutliersSign);
 						}
 
-						values[x] = max*minMaxOutliersSign;
-						continue;
-
-					case MEAN:
-						addSideSums(cache, x, kernel, sums);
-						if (Double.isNaN(sums[0])) //avoid perpetuating NaNs into remaining line
-							fullCalculation = true;
-						break;
+						values[x] = max * minMaxOutliersSign;
+					}
 				}
 			}
 
-			switch(filterType)
-			{
-				case MEAN:
-					values[x] = (float)(sums[0]/kNPoints);
-					break;
-				case MEDIAN:
-					median = getMedian(cache, x, kernel, medianBuf1, medianBuf2, kNPoints, median);
-					values[x] = median;
-					break;
+			/**
+			 * Get max (or -min if sign=-1) at the right border inside or left border outside the kernel area.
+			 * x between 0 and cacheWidth-1
+			 */
+			private float getSideMax(final float[] cache, int xCache0, final int[] kernel, final boolean isRight, final float sign) {
+				float max = -Float.MAX_VALUE;
+				if (!isRight) xCache0--;
+				for (int kk = isRight ? 1 : 0; kk < kernel.length; kk += 2) {    // y within the cache stripe (we have 2 kernel pointers per cache line)
+					final float v = cache[xCache0 + kernel[kk]] * sign;
+					if (max < v) max = v;
+				}
+				return max;
 			}
-		}
+
+			/**
+			 * Get max (or -min if sign=-1) within the kernel area.
+			 *
+			 * @param ignoreRight should be 0 for analyzing all data or 1 for leaving out the row at the right
+			 * @param max         should be -Float.MAX_VALUE or the smallest value the maximum can be
+			 */
+			private float getAreaMax(final float[] cache, final int xCache0, final int[] kernel, final int ignoreRight, float max, final float sign) {
+				for (int kk = 0; kk < kernel.length; kk++) {    // y within the cache stripe (we have 2 kernel pointers per cache line)
+					for (int p = kernel[kk++] + xCache0; p <= kernel[kk] + xCache0 - ignoreRight; p++) {
+						final float v = cache[p] * sign;
+						if (max < v) max = v;
+					}
+				}
+				return max;
+			}
+		};
 	}
 
-	/** Read a line into the cache (including padding in x).
-	 *	If y>=height, instead of reading new data, it duplicates the line y=height-1.
-	 *	If y==0, it also creates the data for y<0, as far as necessary, thus filling the cache with
-	 *	more than one line (padding by duplicating the y=0 row).
-	 */
-	private void readLineToCacheOrPad(final Object pixels, final int width, final int height, final int xminInside, final int widthInside,
-	                                         final float[] cache, final int cacheWidth, final int padLeft, final int padRight,
-	                                         final int y) {
-		final int lineInCache = y%kHeight;
-		if (y < height) {
 
-			if(pixels instanceof byte[])
-				readLineToCache((byte[])pixels, y*width, xminInside, widthInside,
-					cache, lineInCache*cacheWidth, padLeft, padRight);
-			else if (pixels instanceof short[])
-			readLineToCache((short[])pixels, y*width, xminInside, widthInside,
-					cache, lineInCache*cacheWidth, padLeft, padRight);
-			else
-				throw new IllegalArgumentException("pixels argument must be byte or short array. pixels is "+pixels.getClass().getName());
+	private LineFilter getMedianFilter() {
+		return new LineFilter() {
 
-			if (y==0) for (int prevY = 0-kHeight/2; prevY<0; prevY++) {	//for y<0, pad with y=0 border pixels
-				int prevLineInCache = kHeight+prevY;
-				System.arraycopy(cache, 0, cache, prevLineInCache*cacheWidth, cacheWidth);
+			final float[] medianBufferAbove = (filterType == Type.MEDIAN) ? new float[kNPoints] : null;
+			final float[] medianBufferBelow = (filterType == Type.MEDIAN) ? new float[kNPoints] : null;
+
+			@Override
+			public void filterLine(float[] values, int width, float[] cache, final int cacheLineP, int[] kernel, double[] sums) {
+				float median = Float.isNaN(cache[cacheLineP]) ? 0 : cache[cacheLineP];    // a first guess
+				for (int x = 0; x < width; x++) {                            // x is with respect to 0
+						median = getMedian(cache, x, kernel, medianBufferAbove, medianBufferBelow, kNPoints, median);
+						values[x] = median;
+				}
 			}
-		} else
-			System.arraycopy(cache, cacheWidth*((height-1)%kHeight), cache, lineInCache*cacheWidth, cacheWidth);
+		};
+	}
+
+	private interface LineReaderWriter {
+		/**
+		 * Read a line into the cache (including padding in x).
+		 * If y>=height, instead of reading new data, it duplicates the line y=height-1.
+		 * If y==0, it also creates the data for y<0, as far as necessary, thus filling the cache with
+		 * more than one line (padding by duplicating the y=0 row).
+		 */
+		void readLineToCacheOrPad(final Object pixels, final int width, final int height, final int xminInside, final int widthInside,
+								  final float[] cache, final int cacheWidth, final int padLeft, final int padRight,
+								  final int y);
+
+		void writeLineToPixels(final float[] values, final Object pixels, int pixelP, final int length);
+	}
+
+	private final LineReaderWriter byteLineReaderWriter() {return new LineReaderWriter() {
+		@Override
+		public void readLineToCacheOrPad(Object pixels, int width, int height, int xminInside, int widthInside, float[] cache, int cacheWidth, int padLeft, int padRight, int y) {
+			final int lineInCache = y % kHeight;
+			if (y < height) {
+
+				readLineToCache((byte[]) pixels, y * width, xminInside, widthInside,
+						cache, lineInCache * cacheWidth, padLeft, padRight);
+
+				if (y == 0)
+					for (int prevY = 0 - kHeight / 2; prevY < 0; prevY++) {    //for y<0, pad with y=0 border pixels
+						int prevLineInCache = kHeight + prevY;
+						System.arraycopy(cache, 0, cache, prevLineInCache * cacheWidth, cacheWidth);
+					}
+			} else
+				System.arraycopy(cache, cacheWidth * ((height - 1) % kHeight), cache, lineInCache * cacheWidth, cacheWidth);
+		}
+
+		@Override
+		public void writeLineToPixels(float[] values, Object pixels, int pixelP, int length) {
+			final byte[] bytePixels = (byte[]) pixels;
+			for (int i=0; i<length; i++,pixelP++)
+				bytePixels[pixelP] = (byte)(((int)(values[i] + 0.5f))&0xff);
+		}
+
+	};
+	}
+
+	private final LineReaderWriter shortLineReaderWriter() {
+		return new LineReaderWriter() {
+			@Override
+			public void readLineToCacheOrPad(Object pixels, int width, int height, int xminInside, int widthInside, float[] cache, int cacheWidth, int padLeft, int padRight, int y) {
+				final int lineInCache = y % kHeight;
+				if (y < height) {
+
+					readLineToCache((short[]) pixels, y * width, xminInside, widthInside,
+							cache, lineInCache * cacheWidth, padLeft, padRight);
+
+					if (y == 0)
+						for (int prevY = 0 - kHeight / 2; prevY < 0; prevY++) {    //for y<0, pad with y=0 border pixels
+							int prevLineInCache = kHeight + prevY;
+							System.arraycopy(cache, 0, cache, prevLineInCache * cacheWidth, cacheWidth);
+						}
+				} else
+					System.arraycopy(cache, cacheWidth * ((height - 1) % kHeight), cache, lineInCache * cacheWidth, cacheWidth);
+			}
+
+			@Override
+			public void writeLineToPixels(float[] values, Object pixels, int pixelP, int length) {
+				final short[] shortPixels = (short[]) pixels;
+				for (int i = 0; i < length; i++, pixelP++)
+					shortPixels[pixelP] = (short) (((int) (values[i] + 0.5f)) & 0xffff);
+			}
+		};
 	}
 
 
@@ -272,78 +371,6 @@ public class RankFilter implements Serializable
 			cache[cp] = cache[cacheLineP+padLeft+widthInside-1];
 	}
 
-	/** Write a line to pixels arrax, converting from float (not for float data!)
-	 *	No checking for overflow/underflow
-	 */
-	private static void writeLineToPixels(final float[] values, final byte[] pixels, int pixelP, final int length) {
-			for (int i=0; i<length; i++,pixelP++)
-				pixels[pixelP] = (byte)(((int)(values[i] + 0.5f))&0xff);
-	}
-
-	private static void writeLineToPixels(final float[] values, final short[] pixels, int pixelP, final int length) {
-		for (int i=0; i<length; i++,pixelP++)
-			pixels[pixelP] = (short)(((int)(values[i] + 0.5f))&0xffff);
-	}
-
-	/** Get max (or -min if sign=-1) within the kernel area.
-	 *	@param ignoreRight should be 0 for analyzing all data or 1 for leaving out the row at the right
-	 *	@param max should be -Float.MAX_VALUE or the smallest value the maximum can be */
-	private static float getAreaMax(final float[] cache, final int xCache0, final int[] kernel, final int ignoreRight, float max, final float sign) {
-		for (int kk=0; kk<kernel.length; kk++) {	// y within the cache stripe (we have 2 kernel pointers per cache line)
-			for (int p=kernel[kk++]+xCache0; p<=kernel[kk]+xCache0-ignoreRight; p++) {
-				final float v = cache[p]*sign;
-				if (max < v) max = v;
-			}
-		}
-		return max;
-	}
-
-	/** Get max (or -min if sign=-1) at the right border inside or left border outside the kernel area.
-	 *	x between 0 and cacheWidth-1 */
-	private static float getSideMax(final float[] cache, int xCache0, final int[] kernel, final boolean isRight, final float sign) {
-		float max = -Float.MAX_VALUE;
-		if (!isRight) xCache0--;
-		for (int kk= isRight ? 1 : 0; kk<kernel.length; kk+=2) {	// y within the cache stripe (we have 2 kernel pointers per cache line)
-			final float v = cache[xCache0 + kernel[kk]]*sign;
-			if (max < v) max = v;
-		}
-		return max;
-	}
-
-	/** Get sum of values and values squared within the kernel area.
-	 *	x between 0 and cacheWidth-1
-	 *	Output is written to array sums[0] = sum; sums[1] = sum of squares */
-	private static void getAreaSums(final float[] cache, int xCache0, final int[] kernel, final double[] sums) {
-		double sum=0, sum2=0;
-		for (int kk=0; kk<kernel.length; kk++) {	// y within the cache stripe (we have 2 kernel pointers per cache line)
-			for (int p=kernel[kk++]+xCache0; p<=kernel[kk]+xCache0; p++) {
-				final float v = cache[p];
-				sum += v;
-				sum2 += v*v;
-			}
-		}
-		sums[0] = sum;
-		sums[1] = sum2;
-		return;
-	}
-
-	/** Add all values and values squared at the right border inside minus at the left border outside the kernal area.
-	 *	Output is added or subtracted to/from array sums[0] += sum; sums[1] += sum of squares  when at
-	 *	the right border, minus when at the left border */
-	private static void addSideSums(final float[] cache, final int xCache0, final int[] kernel, final double[] sums) {
-		double sum=0, sum2=0;
-		for (int kk=0; kk<kernel.length; /*k++;k++ below*/) {
-			float v = cache[kernel[kk++]+(xCache0-1)];
-			sum -= v;
-			sum2 -= v*v;
-			v = cache[kernel[kk++]+xCache0];
-			sum += v;
-			sum2 += v*v;
-		}
-		sums[0] += sum;
-		sums[1] += sum2;
-		return;
-	}
 
 	/** Get median of values within kernel-sized neighborhood. Kernel size kNPoints should be odd.
 	 */

@@ -21,11 +21,9 @@ import imagesurf.feature.PixelType;
 import net.imagej.ImageJ;
 import org.scijava.ItemIO;
 import org.scijava.command.Command;
-import org.scijava.options.OptionsPlugin;
 import org.scijava.plugin.Parameter;
 import org.scijava.plugin.Plugin;
 import org.scijava.prefs.PrefService;
-import org.scijava.ui.swing.options.OptionsLookAndFeel;
 import org.scijava.widget.NumberWidget;
 
 /**

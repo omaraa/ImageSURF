@@ -23,12 +23,9 @@ import net.imagej.ImageJ;
 import org.scijava.ItemIO;
 import org.scijava.ItemVisibility;
 import org.scijava.command.Command;
-import org.scijava.log.LogService;
-import org.scijava.options.OptionsPlugin;
 import org.scijava.plugin.Parameter;
 import org.scijava.plugin.Plugin;
 import org.scijava.prefs.PrefService;
-import org.scijava.ui.UserInterface;
 import org.scijava.widget.NumberWidget;
 
 import java.util.ArrayList;
@@ -169,7 +166,7 @@ public class ImageSurfImageFilterSelection implements Command
 			selectedRadii = "NO FILTER RADII SELECTED";
 	}
 
-	static FeatureCalculator[] getFeatureCalculators(PixelType pixelType, int minFeatureRadius, int maxFeatureRadius, PrefService prefs)
+	static FeatureCalculator[] getFeatureCalculators(PixelType pixelType, int minFeatureRadius, int maxFeatureRadius, int numChannels, PrefService prefs)
 	{
 		if(null == pixelType)
 			throw new IllegalArgumentException("pixelType is null.");
@@ -196,7 +193,9 @@ public class ImageSurfImageFilterSelection implements Command
 		if(!prefs.getBoolean(ImageSurfSettings.IMAGESURF_USE_ENTROPY, false))
 			toExclude.add(Entropy.class);
 
-		FeatureCalculator[] featureCalculators = Arrays.stream(pixelType.getAllFeatureCalculators(minFeatureRadius, maxFeatureRadius))
+		FeatureCalculator[] featureCalculators = Arrays.stream(
+				numChannels == 1 ? pixelType.getAllFeatureCalculators(minFeatureRadius, maxFeatureRadius) :
+						pixelType.getMultiChannelFeatureCalculators(minFeatureRadius, maxFeatureRadius, numChannels))
 				.filter(f -> !toExclude.contains(f.getClass()))
 				.filter(f -> {
 					if(f instanceof DifferenceOf)

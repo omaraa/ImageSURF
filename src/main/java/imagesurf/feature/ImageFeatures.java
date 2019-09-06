@@ -86,7 +86,7 @@ public class ImageFeatures implements Serializable
 	public ImageFeatures(ImagePlus imagePlus)
 	{
 		this(getImagePlusPixels(imagePlus),
-				Utility.getPixelType(imagePlus),
+				Utility.INSTANCE.getPixelType(imagePlus),
 				imagePlus.getWidth(),
 				imagePlus.getHeight(),
 				imagePlus.getNChannels(),
@@ -101,7 +101,7 @@ public class ImageFeatures implements Serializable
 		this.width = i.width;
 		this.height = i.height;
 		this.numChannels = i.numChannels;
-		this.numMergedChannels = Utility.calculateNumMergedChannels(numChannels);
+		this.numMergedChannels = Utility.INSTANCE.calculateNumMergedChannels(numChannels);
 		this.numSlices = i.numSlices;
 		this.numFrames = i.numFrames;
 		this.pixelsPerChannel = i.pixelsPerChannel;
@@ -125,7 +125,7 @@ public class ImageFeatures implements Serializable
 		this.width = width;
 		this.height = height;
 		this.numChannels = numChannels;
-		this.numMergedChannels = Utility.calculateNumMergedChannels(numChannels);
+		this.numMergedChannels = Utility.INSTANCE.calculateNumMergedChannels(numChannels);
 		this.numSlices = numSlices;
 		this.numFrames = numFrames;
 		this.pixelsPerChannel = width * height;
@@ -485,14 +485,14 @@ public class ImageFeatures implements Serializable
 		final int[] dimensions = image.getDimensions();
 		int width = dimensions[0];
 		int height = dimensions[1];
-		int numChannels = Utility.isGrayScale(image) ? 1 : dimensions[2];
+		int numChannels = Utility.INSTANCE.isGrayScale(image) ? 1 : dimensions[2];
 		int numSlices = dimensions[3];
 		int numFrames = dimensions[4];
 		int pixelsPerChannel = width * height;
 		int pixelsPerSlice = pixelsPerChannel * numChannels;
 		int pixelsPerFrame = pixelsPerSlice * numSlices;
 
-		switch (Utility.getPixelType(image))
+		switch (Utility.INSTANCE.getPixelType(image))
 		{
 			case GRAY_8_BIT:
 			{
@@ -699,7 +699,7 @@ public class ImageFeatures implements Serializable
 		copy.removeEasilyComputedFeatures();
 
 		ImageFeatures toSerialize = copy;
-		Utility.serializeObject(toSerialize, path.toFile(), false);
+		Utility.INSTANCE.serializeObject(toSerialize, path.toFile(), false);
 	}
 
 	private void removeEasilyComputedFeatures()
@@ -751,7 +751,7 @@ public class ImageFeatures implements Serializable
 
 	public static ImageFeatures deserialize(Path path) throws Exception
 	{
-		return (ImageFeatures) Utility.deserializeObject(path.toFile(), false);
+		return (ImageFeatures) Utility.INSTANCE.deserializeObject(path.toFile(), false);
 	}
 
 	public static class ByteReader implements FeatureReader
@@ -761,6 +761,34 @@ public class ImageFeatures implements Serializable
 		private final byte[][] values;
 
 		private final int numClasses;
+
+		public ByteReader(Object featurePixels, int classIndex)
+		{
+			this(toBytes(featurePixels), classIndex);
+		}
+
+		private static byte[][] toBytes(Object byteArrays) {
+			if(byteArrays instanceof byte[][]) {
+				return (byte[][]) byteArrays;
+			}
+			else if(byteArrays instanceof List) {
+				List objectsList = (List) byteArrays;
+				byte[][] bytesArray = new byte[objectsList.size()][];
+
+				for(int i = 0; i < objectsList.size(); i++)
+					bytesArray[i] = (byte[]) objectsList.get(i);
+
+				return bytesArray;
+			}
+			else if(byteArrays instanceof Object[]) {
+				Object[]  objectsArray = (Object[]) byteArrays;
+				byte[][] bytesArray = new byte[objectsArray.length][];
+				System.arraycopy(objectsArray, 0, bytesArray, 0, objectsArray.length);
+				return bytesArray;
+			}
+
+			throw new RuntimeException("Failed to read "+byteArrays+" using ByteReader");
+		}
 
 		public ByteReader(byte[][] featurePixels, int classIndex)
 		{
@@ -836,6 +864,34 @@ public class ImageFeatures implements Serializable
 		@Override
 		public int getNumClasses() {
 			return numClasses;
+		}
+
+		public ShortReader(Object featurePixels, int classIndex)
+		{
+			this(toShorts(featurePixels), classIndex);
+		}
+
+		private static short[][] toShorts(Object shortArrays) {
+			if(shortArrays instanceof short[][]) {
+				return (short[][]) shortArrays;
+			}
+			else if(shortArrays instanceof List) {
+				List objectsList = (List) shortArrays;
+				short[][] shortsArray = new short[objectsList.size()][];
+
+				for(int i = 0; i < objectsList.size(); i++)
+					shortsArray[i] = (short[]) objectsList.get(i);
+
+				return shortsArray;
+			}
+			else if(shortArrays instanceof Object[]) {
+				Object[]  objectsArray = (Object[]) shortArrays;
+				short[][] bytesArray = new short[objectsArray.length][];
+				System.arraycopy(objectsArray, 0, bytesArray, 0, objectsArray.length);
+				return bytesArray;
+			}
+
+			throw new RuntimeException("Failed to read "+shortArrays+" using ByteReader");
 		}
 
 		public ShortReader(short[][] featurePixels, int classIndex)

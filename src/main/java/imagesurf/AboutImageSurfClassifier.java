@@ -34,8 +34,8 @@ public class AboutImageSurfClassifier implements Command {
 	public void run() {
 		try
 		{
-			ImageSurfClassifier classifier = (ImageSurfClassifier) Utility.deserializeObject(classifierFile, true);
-			ImageSurf = Utility.describeClassifier(classifier);
+			ImageSurfClassifier classifier = (ImageSurfClassifier) Utility.INSTANCE.deserializeObject(classifierFile, true);
+			ImageSurf = Utility.INSTANCE.describeClassifier(classifier);
 		}
 		catch (Exception e)
 		{

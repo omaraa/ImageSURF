@@ -97,7 +97,7 @@ public class BatchApplyImageSurf implements Command{
 		final ImageSurfClassifier imageSurfClassifier;
 		try
 		{
-			imageSurfClassifier = (ImageSurfClassifier) Utility.deserializeObject(classifierFile, true);
+			imageSurfClassifier = (ImageSurfClassifier) Utility.INSTANCE.deserializeObject(classifierFile, true);
 		}
 		catch (IOException | ClassNotFoundException e)
 		{
@@ -185,7 +185,7 @@ public class BatchApplyImageSurf implements Command{
 
 						randomForest.addProgressListener(randomForestProgressListener);
 						int[] classes = randomForest.classForInstances(featureReader);
-						randomForest.removeprogressListener(randomForestProgressListener);
+						randomForest.removeProgressListener(randomForestProgressListener);
 						byte[] segmentationPixels = new byte[numPixels];
 
 						for (int i = 0; i < numPixels; i++)

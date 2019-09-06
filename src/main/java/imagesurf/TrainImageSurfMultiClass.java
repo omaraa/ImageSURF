@@ -17,11 +17,15 @@
 
 package imagesurf;
 
-import ij.*;
+import ij.IJ;
+import ij.ImagePlus;
+import ij.ImageStack;
+import ij.Prefs;
 import ij.io.FileSaver;
 import ij.process.ByteProcessor;
 import ij.process.ImageProcessor;
 import ij.process.ShortProcessor;
+import imagesurf.classifier.FeatureSelector;
 import imagesurf.classifier.ImageSurfClassifier;
 import imagesurf.classifier.RandomForest;
 import imagesurf.feature.FeatureReader;
@@ -32,7 +36,6 @@ import imagesurf.util.Training;
 import imagesurf.util.Utility;
 import net.imagej.Dataset;
 import net.imagej.ImageJ;
-import net.mintern.primitive.Primitive;
 import org.scijava.ItemIO;
 import org.scijava.ItemVisibility;
 import org.scijava.app.StatusService;
@@ -48,8 +51,10 @@ import org.scijava.widget.FileWidget;
 import java.io.File;
 import java.io.FileFilter;
 import java.io.IOException;
-import java.util.*;
-import java.util.stream.IntStream;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Random;
 
 @Plugin(type = Command.class, headless = true,
         menuPath = "Plugins>Segmentation>ImageSURF>3. Train ImageSURF Classifier")
@@ -194,7 +199,7 @@ public class TrainImageSurfMultiClass implements Command {
         try {
             int examplePortion = prefService.getInt(ImageSurfSettings.IMAGESURF_EXAMPLE_PORTION, ImageSurfSettings.DEFAULT_EXAMPLE_PORTION);
             trainingExamples = Training.INSTANCE.getTrainingExamples(labelFiles, unlabelledFiles, rawImageFiles, featureFiles,
-                    imageSurfDataPath, random, progressListener, examplePortion, saveCalculatedFeatures,
+                    random, progressListener, examplePortion, saveCalculatedFeatures,
                     pixelType, selectedFeatures);
 
             switch (pixelType) {
@@ -234,7 +239,7 @@ public class TrainImageSurfMultiClass implements Command {
         final FeatureCalculator[] optimalFeatures;
         final RandomForest randomForest;
         if (getMaxFeatures() < selectedFeatures.length && getMaxFeatures() > 0) {
-            optimalFeatures = selectOptimalFeatures(getMaxFeatures(), reader, builder.build(), selectedFeatures, pixelType);
+            optimalFeatures = FeatureSelector.selectOptimalFeatures(getMaxFeatures(), reader, builder.build(), selectedFeatures, message -> log.info(message));
 
             final FeatureReader optimisedFeaturesReader = Training.INSTANCE.getSelectedFeaturesReader(optimalFeatures, selectedFeatures, trainingExamples, pixelType);
 
@@ -281,14 +286,14 @@ public class TrainImageSurfMultiClass implements Command {
             log.error(e);
         }
 
-        randomForest.removeprogressListener(randomForestProgressListener);
+        randomForest.removeProgressListener(randomForestProgressListener);
 
         ImageSurfClassifier imageSurfClassifier = new ImageSurfClassifier(randomForest, optimalFeatures, pixelType, numChannels);
         writeClassifier(imageSurfClassifier);
 
         ImageSURF = "ImageSURF classifier successfully trained and saved to " + classifierOutputPath.getAbsolutePath()
                 + "\n\n" + ImageSURF + "\n\n";
-        ImageSURF += Utility.describeClassifier(imageSurfClassifier);
+        ImageSURF += Utility.INSTANCE.describeClassifier(imageSurfClassifier);
 
         switch (afterTraining) {
             case AFTER_TRAINING_OPTION_DISPLAY:
@@ -368,25 +373,14 @@ public class TrainImageSurfMultiClass implements Command {
     }
 
     private FeatureCalculator[] getSelectedFeatures(PixelType pixelType, int numChannels) {
-        FeatureCalculator[] baseCalculators = ImageSurfImageFilterSelection.getFeatureCalculators(
+        final int numMergedChannels = Utility.INSTANCE.calculateNumMergedChannels(numChannels);
+
+        FeatureCalculator[] selected = ImageSurfImageFilterSelection.getFeatureCalculators(
                 pixelType,
                 prefService.getInt(ImageSurfSettings.IMAGESURF_MIN_FEATURE_RADIUS, ImageSurfSettings.DEFAULT_MIN_FEATURE_RADIUS),
                 prefService.getInt(ImageSurfSettings.IMAGESURF_MAX_FEATURE_RADIUS, ImageSurfSettings.DEFAULT_MAX_FEATURE_RADIUS),
+                numMergedChannels,
                 prefService);
-
-        final int numMergedChannels = Utility.calculateNumMergedChannels(numChannels);
-
-        List<FeatureCalculator> selectedFeatures = new ArrayList<>(baseCalculators.length * numMergedChannels);
-
-        for (int c = 0; c < numMergedChannels; c++) {
-            for (FeatureCalculator f : baseCalculators) {
-                FeatureCalculator tagged = f.duplicate();
-                tagged.setTag(ImageFeatures.FEATURE_TAG_CHANNEL_INDEX, c);
-                selectedFeatures.add(tagged);
-            }
-        }
-
-        FeatureCalculator[] selected = selectedFeatures.stream().toArray(FeatureCalculator[]::new);
 
         if (selected == null || selected.length == 0)
             throw new RuntimeException("Cannot build imagesurf.classifier with no features.");
@@ -420,7 +414,7 @@ public class TrainImageSurfMultiClass implements Command {
                     imageFeatures = ImageFeatures.deserialize(featureFiles[imageIndex].toPath());
                 }
 
-                ImageStack segmentation = Utility.segmentImage(imageSurfClassifier, imageFeatures, image, statusService);
+                ImageStack segmentation = Utility.INSTANCE.segmentImage(imageSurfClassifier, imageFeatures, image, statusService);
 
                 segmentationStacks[imageIndex] = segmentation;
                 imageStacks[imageIndex] = image.getStack();
@@ -478,8 +472,8 @@ public class TrainImageSurfMultiClass implements Command {
             segmentationStack.addSlice(resizedSegmentations.get(processorIndex));
         }
 
-        new ImagePlus("Segmented Training Images", segmentationStack).show();
-        new ImagePlus("Training Images", imageStack).show();
+        new ImagePlus("Segmented imagesurf.util.Training Images", segmentationStack).show();
+        new ImagePlus("imagesurf.util.Training Images", imageStack).show();
     }
 
     private void segmentTrainingImagesAndSave(ImageSurfClassifier imageSurfClassifier, File imageSurfDataPath, File[] rawImageFiles, File[] featureFiles) {
@@ -502,7 +496,7 @@ public class TrainImageSurfMultiClass implements Command {
                     imageFeatures = ImageFeatures.deserialize(featureFiles[imageIndex].toPath());
                 }
 
-                ImageStack segmentation = Utility.segmentImage(imageSurfClassifier, imageFeatures, image, statusService);
+                ImageStack segmentation = Utility.INSTANCE.segmentImage(imageSurfClassifier, imageFeatures, image, statusService);
                 ImagePlus segmentationImage = new ImagePlus("segmentation", segmentation);
 
                 if (segmentation.size() > 1)
@@ -522,7 +516,7 @@ public class TrainImageSurfMultiClass implements Command {
         int bagSize = prefService.getInt(ImageSurfSettings.IMAGESURF_BAG_SIZE, ImageSurfSettings.DEFAULT_BAG_SIZE);
 
         if (numAttributes <= 0) {
-            numAttributes = (int) (Utility.log2(numFeatures - 1) + 1);
+            numAttributes = (int) (Utility.INSTANCE.log2(numFeatures - 1) + 1);
             if (numAttributes <= 0)
                 numAttributes = 1;
         }
@@ -547,7 +541,7 @@ public class TrainImageSurfMultiClass implements Command {
 
         while (!writeSuccessful) {
             try {
-                Utility.serializeObject(imageSurfClassifier, classifierOutputPath, true);
+                Utility.INSTANCE.serializeObject(imageSurfClassifier, classifierOutputPath, true);
                 writeSuccessful = true;
                 log.trace("Classifier saved.");
             } catch (IOException e) {
@@ -567,29 +561,6 @@ public class TrainImageSurfMultiClass implements Command {
                 }
             }
         }
-    }
-
-    private FeatureCalculator[] selectOptimalFeatures(int maxFeatures, FeatureReader reader, RandomForest randomForest, FeatureCalculator[] availableFeatures, PixelType pixelType) {
-        final double[] featureImportance;
-        try {
-            featureImportance = randomForest.calculateFeatureImportance(reader);
-        } catch (InterruptedException e) {
-            throw new RuntimeException("Failed to calculate feature importance", e);
-        }
-        int[] rankedFeatures = IntStream.range(0, reader.getNumFeatures())
-                .filter(i -> reader.getClassIndex() != i)
-                .toArray();
-
-        Primitive.sort(rankedFeatures, (i1, i2) -> Double.compare(featureImportance[i2], featureImportance[i1]));
-
-        log.info("Feature Importance:");
-        for (int i : rankedFeatures) {
-            log.info(availableFeatures[i].getDescriptionWithTags() + ": " + featureImportance[i]);
-        }
-
-        return Arrays.stream(rankedFeatures, 0, maxFeatures)
-                .mapToObj(i -> availableFeatures[i])
-                .toArray(FeatureCalculator[]::new);
     }
 
     private final FileFilter imageLabelFileFilter = new FileFilter() {

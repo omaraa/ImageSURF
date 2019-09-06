@@ -20,10 +20,8 @@ package imagesurf;
 import ij.ImagePlus;
 import ij.ImageStack;
 import imagesurf.feature.ImageFeatures;
-import imagesurf.feature.PixelType;
 import imagesurf.feature.calculator.FeatureCalculator;
 import imagesurf.util.Utility;
-import net.imagej.Dataset;
 import net.imagej.ImageJ;
 import org.scijava.ItemIO;
 import org.scijava.app.StatusService;
@@ -34,9 +32,6 @@ import org.scijava.plugin.Plugin;
 import org.scijava.prefs.PrefService;
 
 import java.io.File;
-
-import static imagesurf.feature.PixelType.GRAY_16_BIT;
-import static imagesurf.feature.PixelType.GRAY_8_BIT;
 
 @Plugin(type = Command.class, headless = true,
 	menuPath = "Plugins>Segmentation>ImageSURF>Advanced>View Saved Image Features")
@@ -69,7 +64,7 @@ public class ViewSavedImageFeatures implements Command{
 	{
 		try
 		{
-			ImageFeatures features = (ImageFeatures) Utility.deserializeObject(inputImage, false);
+			ImageFeatures features = (ImageFeatures) Utility.INSTANCE.deserializeObject(inputImage, false);
 
 			final ImageStack outputStack = new ImageStack(features.width, features.height);
 
