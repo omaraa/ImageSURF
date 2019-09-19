@@ -150,7 +150,7 @@ public class ImageSurfImageFilterSelection implements Command
 
 	protected void onRadiiChanged() {
 
-		FeatureCalculator[] selectedFeatures = PixelType.GRAY_8_BIT.getAllFeatureCalculators(minFeatureRadius, maxFeatureRadius);
+		FeatureCalculator[] selectedFeatures = PixelType.GRAY_8_BIT.getAllFeatureCalculators(minFeatureRadius, maxFeatureRadius, 1);
 
 		List<String> radii = Arrays.stream(selectedFeatures)
 				.filter(f -> !f.equals(Identity.get()))
@@ -194,8 +194,7 @@ public class ImageSurfImageFilterSelection implements Command
 			toExclude.add(Entropy.class);
 
 		FeatureCalculator[] featureCalculators = Arrays.stream(
-				numChannels == 1 ? pixelType.getAllFeatureCalculators(minFeatureRadius, maxFeatureRadius) :
-						pixelType.getMultiChannelFeatureCalculators(minFeatureRadius, maxFeatureRadius, numChannels))
+				pixelType.getAllFeatureCalculators(minFeatureRadius, maxFeatureRadius, numChannels))
 				.filter(f -> !toExclude.contains(f.getClass()))
 				.filter(f -> {
 					if(f instanceof DifferenceOf)

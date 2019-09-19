@@ -83,7 +83,7 @@ class RandomForestTest {
         val rawImageFile = arrayOf(File(javaClass.getResource("/immuno/annotated/amyloid-beta.tif").file))
         val featureFile = null
 
-        val selectedFeatures = PixelType.GRAY_8_BIT.getMultiChannelFeatureCalculators(0, 25, 3)
+        val selectedFeatures = PixelType.GRAY_8_BIT.getAllFeatureCalculators(0, 25, 3)
 
         val trainingExamples = Training.getTrainingExamples(labelImageFile, unlabelledImageFile, rawImageFile, featureFile,
                 random, null, examplePortion, false, pixelType,
@@ -132,7 +132,7 @@ class RandomForestTest {
         val rawImageFile = arrayOf(File(javaClass.getResource("/immuno/annotated/amyloid-beta.tif").file))
         val featureFile = null
 
-        val selectedFeatures = PixelType.GRAY_8_BIT.getMultiChannelFeatureCalculators(0, 25, 3)
+        val selectedFeatures = PixelType.GRAY_8_BIT.getAllFeatureCalculators(0, 25, 3)
 
         val trainingExamples = Training.getTrainingExamples(labelImageFile, unlabelledImageFile, rawImageFile, featureFile,
                 random, null, examplePortion, false, pixelType,
@@ -170,8 +170,8 @@ class RandomForestTest {
         private val random = Random(42)
         private val examplePortion = 30
         private val pixelType = PixelType.GRAY_8_BIT
-        val selectedFeaturesSingleChannel = PixelType.GRAY_8_BIT.getAllFeatureCalculators(0, 25)
-        val selectedFeaturesMultiChannel = PixelType.GRAY_8_BIT.getMultiChannelFeatureCalculators(0, 25, 3)
+        val selectedFeaturesSingleChannel = PixelType.GRAY_8_BIT.getAllFeatureCalculators(0, 25, 1)
+        val selectedFeaturesMultiChannel = PixelType.GRAY_8_BIT.getAllFeatureCalculators(0, 25, 3)
         val featureImportanceCalculator = ScrambleFeatureImportanceCalculator(42)
 
 

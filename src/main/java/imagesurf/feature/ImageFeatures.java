@@ -97,7 +97,7 @@ public class ImageFeatures implements Serializable, ProgressNotifier
 				Utility.INSTANCE.getPixelType(imagePlus),
 				imagePlus.getWidth(),
 				imagePlus.getHeight(),
-				imagePlus.getNChannels(),
+				new CompositeImage(imagePlus).getNChannels(),
 				imagePlus.getNSlices(),
 				imagePlus.getNFrames(),
 				imagePlus.getTitle()
@@ -490,17 +490,17 @@ public class ImageFeatures implements Serializable, ProgressNotifier
 	{
 		final ImagePlus compositeImage = new CompositeImage(image);
 
-		final int[] dimensions = image.getDimensions();
+		final int[] dimensions = compositeImage.getDimensions();
 		int width = dimensions[0];
 		int height = dimensions[1];
-		int numChannels = Utility.INSTANCE.isGrayScale(image) ? 1 : dimensions[2];
+		int numChannels = Utility.INSTANCE.isGrayScale(compositeImage) ? 1 : dimensions[2];
 		int numSlices = dimensions[3];
 		int numFrames = dimensions[4];
 		int pixelsPerChannel = width * height;
 		int pixelsPerSlice = pixelsPerChannel * numChannels;
 		int pixelsPerFrame = pixelsPerSlice * numSlices;
 
-		switch (Utility.INSTANCE.getPixelType(image))
+		switch (Utility.INSTANCE.getPixelType(compositeImage))
 		{
 			case GRAY_8_BIT:
 			{

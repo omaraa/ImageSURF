@@ -40,9 +40,8 @@ public enum PixelType {
 		}
 	}
 
-
 	@NotNull
-	public FeatureCalculator[] getMultiChannelFeatureCalculators(int minRadius, int maxRadius, int numMergedChannels) {
+	public FeatureCalculator[] getAllFeatureCalculators(int minRadius, int maxRadius, int numMergedChannels) {
 		FeatureCalculator[] baseCalculators = getAllFeatureCalculators(minRadius, maxRadius);
 
 		List<FeatureCalculator> selectedFeatures = new ArrayList<>(baseCalculators.length * numMergedChannels);
@@ -58,7 +57,7 @@ public enum PixelType {
 		return selectedFeatures.stream().toArray(FeatureCalculator[]::new);
 	}
 
-	public FeatureCalculator[] getAllFeatureCalculators(int minRadius, int maxRadius)
+	private FeatureCalculator[] getAllFeatureCalculators(int minRadius, int maxRadius)
 	{
 		final int[] scales = IntStream.range(1, (int) (Math.log(maxRadius) / Math.log(2)+1))
 				.map(i -> 1<<i)

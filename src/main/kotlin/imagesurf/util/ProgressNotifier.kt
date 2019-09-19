@@ -1,5 +1,6 @@
 package imagesurf.util
 
+import java.io.Serializable
 import java.util.HashSet
 
 interface ProgressNotifier {
@@ -17,7 +18,7 @@ interface ProgressListener {
     fun onProgress(current: Int, max: Int, message: String)
 }
 
-class BasicProgressNotifier : ProgressNotifier{
+class BasicProgressNotifier : ProgressNotifier, Serializable {
     private val progressListeners: HashSet<ProgressListener> = HashSet()
 
     override fun addProgressListener(listener: ProgressListener) {
