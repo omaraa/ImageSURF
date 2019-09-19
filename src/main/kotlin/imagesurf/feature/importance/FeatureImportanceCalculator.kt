@@ -12,18 +12,30 @@ interface FeatureImportanceCalculator {
     fun selectOptimalFeatures(maxFeatures: Int, reader: FeatureReader, classifier: Classifier, availableFeatures: Array<FeatureCalculator>, logger: ((String) -> Any?)? = null): Array<FeatureCalculator> {
         val featureImportance = calculateFeatureImportance(classifier, reader)
 
-        val rankedFeatures =
-                (0 until reader.numFeatures)
+        val rankedFeatures = (0 until reader.numFeatures)
+                .asSequence()
                 .filter { i -> reader.classIndex != i }
                 .sortedWith(Comparator { i1, i2 -> featureImportance[i2].compareTo(featureImportance[i1]) })
+                .map { availableFeatures[it] to featureImportance[it] }
+                .toList()
 
         logger?.let { log ->
             log("Feature Importance:")
-            rankedFeatures.forEach {
-                logger(availableFeatures[it].descriptionWithTags + ": " + featureImportance[it])
+            rankedFeatures.forEach {(calculator, importance) ->
+                logger(calculator.descriptionWithTags + ": " + importance)
             }
         }
 
-        return rankedFeatures.take(maxFeatures).map { availableFeatures[it] }.toTypedArray()
+        val lowestSelectedFeatureImportance = rankedFeatures[maxFeatures - 1].second
+        return rankedFeatures
+                .filter { (calculator, importance) -> importance > lowestSelectedFeatureImportance }
+                .let {
+                    rankedFeatures
+                            .filter { (calculator, importance) -> importance.equals(lowestSelectedFeatureImportance) }
+                            .shuffled()
+                            .take(maxFeatures - it.size) + it
+                }
+                .map { (calculator, _) -> calculator }
+                .toTypedArray()
     }
 }
