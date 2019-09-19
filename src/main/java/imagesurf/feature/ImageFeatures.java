@@ -24,8 +24,11 @@ import ij.process.ByteProcessor;
 import ij.process.ShortProcessor;
 import imagesurf.feature.calculator.FeatureCalculator;
 import imagesurf.feature.calculator.Identity;
+import imagesurf.util.ProgressListener;
+import imagesurf.util.ProgressNotifier;
 import net.mintern.primitive.Primitive;
 import imagesurf.util.Utility;
+import org.jetbrains.annotations.NotNull;
 
 import java.io.Serializable;
 import java.nio.file.Path;
@@ -33,7 +36,7 @@ import java.util.*;
 import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
-public class ImageFeatures implements Serializable
+public class ImageFeatures implements Serializable, ProgressNotifier
 {
 	static final long serialVersionUID = 42L;
 	private static final double SAVE_THRESHOLD = 250d / (2000 * 2000); //250ms for a 2000 * 2000 image
@@ -60,24 +63,29 @@ public class ImageFeatures implements Serializable
 
 	transient private static final Map<FeatureCalculator, Collection<Double>> computationTimes = new ConcurrentHashMap<>();
 
-	public interface ProgressListener
-	{
-		void onProgress(int current, int max, String message);
-	}
-
 	private final Collection<ProgressListener> progressListeners = new HashSet<>();
 
-	public boolean addProgressListener(ProgressListener progressListener)
+	public void addProgressListener(ProgressListener progressListener)
 	{
-		return progressListeners.add(progressListener);
+		progressListeners.add(progressListener);
 	}
 
-	public boolean removeProgressListener(ProgressListener progressListener)
+	public void removeProgressListener(ProgressListener progressListener)
 	{
-		return progressListeners.remove(progressListener);
+		progressListeners.remove(progressListener);
 	}
 
-	private void onProgress(int current, int max, String message)
+	@Override
+	public void addProgressListeners(@NotNull Collection<? extends ProgressListener> listeners) {
+		progressListeners.addAll(listeners);
+	}
+
+	@Override
+	public void removeProgressListeners(@NotNull Collection<? extends ProgressListener> listeners) {
+		progressListeners.removeAll(listeners);
+	}
+
+	public void onProgress(int current, int max, String message)
 	{
 		for(ProgressListener p : progressListeners)
 			p.onProgress(current, max, message);

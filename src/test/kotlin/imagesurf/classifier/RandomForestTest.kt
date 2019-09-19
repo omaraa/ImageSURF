@@ -2,7 +2,9 @@ package imagesurf.classifier
 
 import imagesurf.feature.ImageFeatures
 import imagesurf.feature.PixelType
+import imagesurf.feature.importance.ScrambleFeatureImportanceCalculator
 import imagesurf.feature.calculator.FeatureCalculator
+import imagesurf.util.ProgressListener
 import imagesurf.util.Training
 import org.assertj.core.api.Assertions.*
 import org.assertj.core.data.Percentage
@@ -30,9 +32,9 @@ class RandomForestTest {
     @Test
     fun `classifies training pixels accurately in multi channel image`() {
 
-        val labelImageFile = arrayOf(File(javaClass.getResource("/immuno/annotated/Dex1.tif").file))
-        val unlabelledImageFile = arrayOf(File(javaClass.getResource("/immuno/unannotated/Dex1.tif").file))
-        val rawImageFile = arrayOf(File(javaClass.getResource("/immuno/annotated/Dex1.tif").file))
+        val labelImageFile = arrayOf(File(javaClass.getResource("/immuno/annotated/amyloid-beta.tif").file))
+        val unlabelledImageFile = arrayOf(File(javaClass.getResource("/immuno/unannotated/amyloid-beta.tif").file))
+        val rawImageFile = arrayOf(File(javaClass.getResource("/immuno/annotated/amyloid-beta.tif").file))
         val featureFile = null
 
         val selectedFeatures = selectedFeaturesMultiChannel
@@ -76,9 +78,9 @@ class RandomForestTest {
     @Test
     fun `feature order does not affect importance calculation in multi channel image`() {
 
-        val labelImageFile = arrayOf(File(javaClass.getResource("/immuno/annotated/Dex1.tif").file))
-        val unlabelledImageFile = arrayOf(File(javaClass.getResource("/immuno/unannotated/Dex1.tif").file))
-        val rawImageFile = arrayOf(File(javaClass.getResource("/immuno/annotated/Dex1.tif").file))
+        val labelImageFile = arrayOf(File(javaClass.getResource("/immuno/annotated/amyloid-beta.tif").file))
+        val unlabelledImageFile = arrayOf(File(javaClass.getResource("/immuno/unannotated/amyloid-beta.tif").file))
+        val rawImageFile = arrayOf(File(javaClass.getResource("/immuno/annotated/amyloid-beta.tif").file))
         val featureFile = null
 
         val selectedFeatures = PixelType.GRAY_8_BIT.getMultiChannelFeatureCalculators(0, 25, 3)
@@ -94,12 +96,12 @@ class RandomForestTest {
     private fun `feature order does not affect importance calculation`(trainingExamples: Array<ByteArray>) {
         val featureImportance = ImageFeatures.ByteReader(trainingExamples, trainingExamples.size - 1)
                 .let {
-                    randomForest(it).calculateFeatureImportance(it)
+                    featureImportanceCalculator.calculateFeatureImportance(randomForest(it), it)
                 }.dropLast(1)
 
         val reversedImportance = ImageFeatures.ByteReader(trainingExamples.reversedArray(), 0)
                 .let {
-                    randomForest(it).calculateFeatureImportance(it)
+                    featureImportanceCalculator.calculateFeatureImportance(randomForest(it), it)
                 }.drop(1)
 
         featureImportance.zip(reversedImportance).forEach { (expected, actual) ->
@@ -145,7 +147,9 @@ class RandomForestTest {
         val reader = ImageFeatures.ByteReader(trainingExamples, trainingExamples.size - 1)
         val randomForest = randomForest(reader)
 
-        val optimalFeatures = FeatureSelector.selectOptimalFeatures(10, reader, randomForest, featureCalculators) { println(it)}
+        val featureImportanceCalculator = ScrambleFeatureImportanceCalculator(42);
+
+        val optimalFeatures = featureImportanceCalculator.selectOptimalFeatures(10, reader, randomForest, featureCalculators) { println(it)}
         val optimalTrainingExamples = optimalFeatures.map { featureCalculators.indexOf(it) }.map { trainingExamples[it] } + trainingExamples.last()
         val optimalReader = ImageFeatures.ByteReader(optimalTrainingExamples, optimalTrainingExamples.lastIndex)
 
@@ -168,17 +172,18 @@ class RandomForestTest {
         private val pixelType = PixelType.GRAY_8_BIT
         val selectedFeaturesSingleChannel = PixelType.GRAY_8_BIT.getAllFeatureCalculators(0, 25)
         val selectedFeaturesMultiChannel = PixelType.GRAY_8_BIT.getMultiChannelFeatureCalculators(0, 25, 3)
+        val featureImportanceCalculator = ScrambleFeatureImportanceCalculator(42)
 
 
-        val progressListener: Training.ProgressListener = object: Training.ProgressListener {
+        val progressListener: Training.TrainingProgressListener = object: Training.TrainingProgressListener {
             override fun logInfo(message: String) = println(message)
             override fun logError(message: String) = System.err.println(message)
             override fun showStatus(progress: Int, total: Int, message: String) = println("$progress/$total: $message")
             override fun showStatus(message: String) = print(message)
         }
 
-        val rfProgressListener: RandomForest.ProgressListener =
-                object : RandomForest.ProgressListener {
+        val rfProgressListener: ProgressListener =
+                object : ProgressListener {
                     override fun onProgress(current: Int, max: Int, message: String) {
                         println("$current/$max: $message")
                     }
@@ -186,7 +191,7 @@ class RandomForestTest {
 
         fun randomForest(reader: ImageFeatures.ByteReader): RandomForest = randomForest(reader, rfProgressListener)
 
-        fun randomForest(reader: ImageFeatures.ByteReader, rfProgressListener: RandomForest.ProgressListener?): RandomForest {
+        fun randomForest(reader: ImageFeatures.ByteReader, rfProgressListener: ProgressListener?): RandomForest {
             return RandomForest.Builder()
                     .withNumTrees(500)
                     .withMaxDepth(50)

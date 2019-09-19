@@ -25,13 +25,13 @@ import ij.io.FileSaver;
 import ij.process.ByteProcessor;
 import ij.process.ImageProcessor;
 import ij.process.ShortProcessor;
-import imagesurf.classifier.FeatureSelector;
 import imagesurf.classifier.ImageSurfClassifier;
 import imagesurf.classifier.RandomForest;
-import imagesurf.feature.FeatureReader;
-import imagesurf.feature.ImageFeatures;
-import imagesurf.feature.PixelType;
+import imagesurf.feature.*;
 import imagesurf.feature.calculator.FeatureCalculator;
+import imagesurf.feature.importance.FeatureImportanceCalculator;
+import imagesurf.feature.importance.ScrambleFeatureImportanceCalculator;
+import imagesurf.util.ProgressListener;
 import imagesurf.util.Training;
 import imagesurf.util.Utility;
 import net.imagej.Dataset;
@@ -55,6 +55,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
+import java.util.stream.IntStream;
 
 @Plugin(type = Command.class, headless = true,
         menuPath = "Plugins>Segmentation>ImageSURF>3. Train ImageSURF Classifier")
@@ -127,11 +128,11 @@ public class TrainImageSurfMultiClass implements Command {
     @Parameter(type = ItemIO.OUTPUT)
     String ImageSURF;
 
-    private final RandomForest.ProgressListener randomForestProgressListener = (current, max, message) -> {
+    private final ProgressListener randomForestProgressListener = (current, max, message) -> {
         if (statusService != null) statusService.showStatus(current, max, message);
     };
 
-    private final Training.ProgressListener progressListener = new Training.ProgressListener() {
+    private final Training.TrainingProgressListener progressListener = new Training.TrainingProgressListener() {
         @Override
         public void logInfo(String message) {
             if (log != null)
@@ -239,7 +240,11 @@ public class TrainImageSurfMultiClass implements Command {
         final FeatureCalculator[] optimalFeatures;
         final RandomForest randomForest;
         if (getMaxFeatures() < selectedFeatures.length && getMaxFeatures() > 0) {
-            optimalFeatures = FeatureSelector.selectOptimalFeatures(getMaxFeatures(), reader, builder.build(), selectedFeatures, message -> log.info(message));
+            FeatureImportanceCalculator featureImportanceCalculator = new ScrambleFeatureImportanceCalculator(random.nextLong());
+            optimalFeatures = featureImportanceCalculator.selectOptimalFeatures(getMaxFeatures(), reader, builder.build(), selectedFeatures, message -> {
+                 log.info(message);
+                 return null;
+            });
 
             final FeatureReader optimisedFeaturesReader = Training.INSTANCE.getSelectedFeaturesReader(optimalFeatures, selectedFeatures, trainingExamples, pixelType);
 
@@ -252,7 +257,7 @@ public class TrainImageSurfMultiClass implements Command {
         randomForest.addProgressListener(randomForestProgressListener);
 
         try {
-            int[] verificationClasses = randomForest.classForInstances(reader);
+            int[] verificationClasses = randomForest.classForInstances(reader, IntStream.range(0, reader.getNumInstances()).toArray());
             int[] verificationClassCount = new int[numClasses];
 
             int[] classCount = new int[numClasses];

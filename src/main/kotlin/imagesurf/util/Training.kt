@@ -30,11 +30,11 @@ object Training {
     }
 
     fun getTrainingExamples(labelFiles: Array<File>, unlabelledFiles: Array<File>, rawImageFiles: Array<File>,
-                            featureFiles: Array<File>?, random: Random, progressListener: ProgressListener?,
+                            featureFiles: Array<File>?, random: Random, trainingProgressListener: TrainingProgressListener?,
                             examplePortion: Int, saveCalculatedFeatures: Boolean,
                             pixelType: PixelType, selectedFeatures: Array<FeatureCalculator>): Array<Any> {
 
-        val progressListener = progressListener ?: ProgressListener.dummy
+        val progressListener = trainingProgressListener ?: TrainingProgressListener.dummy
 
         if (labelFiles.isEmpty())
             throw RuntimeException("No valid label files")
@@ -106,7 +106,7 @@ object Training {
                 .toTypedArray()
     }
 
-    private fun writeFeatures(progressListener: ProgressListener, imageIndex: Int, numImages: Int, featureFiles: Array<File>, imageFeatures: ImageFeatures) {
+    private fun writeFeatures(progressListener: TrainingProgressListener, imageIndex: Int, numImages: Int, featureFiles: Array<File>, imageFeatures: ImageFeatures) {
         progressListener.showStatus("Writing features for image ${imageIndex + 1}/$numImages")
         progressListener.logInfo("Writing features to ${featureFiles[imageIndex].toPath()}")
         try {
@@ -118,13 +118,15 @@ object Training {
         progressListener.logInfo("Wrote features to ${featureFiles[imageIndex].toPath()}")
     }
 
-    private fun calculateFeatures(progressListener: ProgressListener, imageIndex: Int, numImages: Int, imageFeatures: ImageFeatures, selectedFeatures: Array<FeatureCalculator>): Boolean {
+    private fun calculateFeatures(progressListener: TrainingProgressListener, imageIndex: Int, numImages: Int, imageFeatures: ImageFeatures, selectedFeatures: Array<FeatureCalculator>): Boolean {
         var calculatedFeatures = false
 
         try {
-            val ifProgressListener: ImageFeatures.ProgressListener =
-                    ImageFeatures.ProgressListener { current, max, _ ->
-                        progressListener.showStatus(current, max, "Calculating features for image ${imageIndex + 1}/$numImages")
+            val ifProgressListener: ProgressListener =
+                    object : ProgressListener {
+                        override fun onProgress(current: Int, max: Int, message: String) {
+                            progressListener.showStatus(current, max, "Calculating features for image ${imageIndex + 1}/$numImages")
+                        }
                     }
             imageFeatures.addProgressListener(ifProgressListener)
 
@@ -139,7 +141,7 @@ object Training {
         return calculatedFeatures
     }
 
-    private fun getImageFeatures(featureFiles: Array<File>?, imageIndex: Int, progressListener: ProgressListener, numImages: Int, rawImage: ImagePlus, pixelType: PixelType): Pair<ImageFeatures, Collection<FeatureCalculator>> {
+    private fun getImageFeatures(featureFiles: Array<File>?, imageIndex: Int, progressListener: TrainingProgressListener, numImages: Int, rawImage: ImagePlus, pixelType: PixelType): Pair<ImageFeatures, Collection<FeatureCalculator>> {
         val imageFeatures: ImageFeatures
         val savedFeatures: Collection<FeatureCalculator>
         if (featureFiles==null || !featureFiles[imageIndex].exists()) {
@@ -189,10 +191,10 @@ object Training {
         return imagePlus
     }
 
-    private fun getLabelledPixelIndices(labelFiles: Array<File>, unlabelledFiles: Array<File>, progressListener: ProgressListener?): List<IntArray> {
+    private fun getLabelledPixelIndices(labelFiles: Array<File>, unlabelledFiles: Array<File>, progressListener: TrainingProgressListener?): List<IntArray> {
         var progressListener = progressListener
         if (progressListener == null)
-            progressListener = ProgressListener.dummy
+            progressListener = TrainingProgressListener.dummy
 
         return labelFiles.indices.map { imageIndex ->
             progressListener.showStatus(imageIndex + 1, labelFiles.size,
@@ -247,15 +249,15 @@ object Training {
                 }
     }
 
-    interface ProgressListener {
+    interface TrainingProgressListener {
         fun logInfo(Message: String)
         fun logError(message: String)
         fun showStatus(progress: Int, total: Int, message: String)
         fun showStatus(message: String)
 
         companion object {
-            val dummy: ProgressListener
-                get() = object : ProgressListener {
+            val dummy: TrainingProgressListener
+                get() = object : TrainingProgressListener {
                     override fun logInfo(Message: String) = Unit
                     override fun logError(message: String) = Unit
                     override fun showStatus(progress: Int, total: Int, message: String) = Unit

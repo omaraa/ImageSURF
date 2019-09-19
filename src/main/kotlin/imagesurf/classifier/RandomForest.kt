@@ -18,6 +18,9 @@
 package imagesurf.classifier
 
 import imagesurf.feature.FeatureReader
+import imagesurf.util.BasicProgressNotifier
+import imagesurf.util.ProgressListener
+import imagesurf.util.ProgressNotifier
 import imagesurf.util.Utility
 
 import java.io.Serializable
@@ -25,6 +28,7 @@ import java.util.*
 import java.util.concurrent.*
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.stream.IntStream
+import kotlin.math.floor
 
 class RandomForest private constructor(
         val minInstances: Int,
@@ -35,9 +39,8 @@ class RandomForest private constructor(
         val numClasses: Int,
         val bagSizePercent: Double,
         numThreads: Int
-) : Serializable {
+) : Serializable, Classifier, ProgressNotifier by BasicProgressNotifier() {
 
-    private val progressListeners: HashSet<ProgressListener> = HashSet()
     private val random: Random = Random(randomSeed.toLong())
     private val trees: Array<RandomTree?> = arrayOfNulls(numTrees)
 
@@ -140,44 +143,9 @@ class RandomForest private constructor(
         }
     }
 
-    @Throws(InterruptedException::class)
-    @JvmOverloads
-    fun calculateFeatureImportance(reader: FeatureReader, instanceIndices: IntArray = IntStream.range(0, reader.numInstances).toArray()): DoubleArray =
-            (0 until reader.numFeatures).map { attributeIndex ->
-                if (attributeIndex == reader.classIndex) java.lang.Double.NaN
-                else ScrambledFeatureReader(reader, attributeIndex, random.nextLong())
-                        .let{ classForInstances(reader, instanceIndices) }
-                        .mapIndexed {index, predictedClass -> predictedClass == reader.getClassValue(instanceIndices[index])}
-                        .filterNot { it }
-                        .size
-                        .toDouble()
-                        .div(instanceIndices.size)
-            }.toDoubleArray()
-
-    interface ProgressListener {
-        fun onProgress(current: Int, max: Int, message: String)
-    }
-
-    fun addProgressListener(listener: ProgressListener) =
-            progressListeners.add(listener)
-
-    fun addProgressListeners(listeners: Collection<ProgressListener>) =
-            progressListeners.addAll(listeners)
-
-    fun removeProgressListener(listener: ProgressListener) =
-            progressListeners.remove(listener)
-
-    fun removeProgressListeners(listeners: Collection<ProgressListener>) =
-            progressListeners.removeAll(listeners)
-
-    private fun onProgress(current: Int, max: Int, message: String) {
-        for (p in progressListeners)
-            p.onProgress(current, max, message)
-    }
-
     private fun buildClassifier(data: FeatureReader, instanceIndices: IntArray) {
 
-        val bagSize = Math.floor(instanceIndices.size * (bagSizePercent / 100)).toInt()
+        val bagSize = floor(instanceIndices.size * (bagSizePercent / 100)).toInt()
 
         val executorPool = Executors.newFixedThreadPool(numThreads)
 
@@ -247,7 +215,7 @@ class RandomForest private constructor(
         }.take(bagSize).toList().toIntArray()
 
 
-    fun distributionForInstance(data: FeatureReader, instanceIndex: Int): DoubleArray {
+    override fun distributionForInstance(data: FeatureReader, instanceIndex: Int): DoubleArray {
         val sums = DoubleArray(this@RandomForest.numClasses)
 
         for (i in 0 until this@RandomForest.numTrees) {
@@ -265,7 +233,7 @@ class RandomForest private constructor(
     }
 
     @Throws(InterruptedException::class)
-    fun distributionForInstances(data: FeatureReader): Array<DoubleArray> {
+    override fun distributionForInstances(data: FeatureReader): Array<DoubleArray> {
         val numInstances = data.numInstances
         val distributions = arrayOfNulls<DoubleArray>(numInstances)
 
@@ -306,7 +274,7 @@ class RandomForest private constructor(
 
     @Throws(InterruptedException::class)
     @JvmOverloads
-    fun classForInstances(data: FeatureReader, instanceIndices: IntArray = IntStream.range(0, data.numInstances).toArray()): IntArray {
+    override fun classForInstances(data: FeatureReader, instanceIndices: IntArray): IntArray {
         val numInstances = instanceIndices.size
         val classes = IntArray(numInstances)
         val progressPoint = numInstances / 100
@@ -352,32 +320,5 @@ class RandomForest private constructor(
     companion object {
         internal const val serialVersionUID = 43L
     }
-}
-
-private class ScrambledFeatureReader constructor(
-        val reader: FeatureReader,
-        val scrambledIndex: Int,
-        val randomSeed: Long) : FeatureReader {
-
-    val scrambledIndices: IntArray = IntStream.range(0, reader.numInstances).toArray()
-            .also { Utility.shuffleArray(it, Random(randomSeed)) }
-
-    override fun getClassValue(instanceIndex: Int): Int {
-        return reader.getClassValue(instanceIndex)
-    }
-
-    override fun getValue(instanceIndex: Int, attributeIndex: Int): Double =
-            if (attributeIndex == scrambledIndex)
-                reader.getValue(scrambledIndices[instanceIndex], attributeIndex)
-            else
-                reader.getValue(instanceIndex, attributeIndex)
-
-    override fun getNumInstances(): Int = reader.numInstances
-
-    override fun getNumFeatures(): Int = reader.numFeatures
-
-    override fun getClassIndex(): Int = reader.classIndex
-
-    override fun getNumClasses(): Int = reader.numClasses
 }
 

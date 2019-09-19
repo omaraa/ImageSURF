@@ -17,6 +17,7 @@
 
 package imagesurf;
 
+import imagesurf.classifier.Classifier;
 import imagesurf.classifier.ImageSurfClassifier;
 import imagesurf.classifier.RandomForest;
 import imagesurf.feature.FeatureReader;
@@ -25,9 +26,11 @@ import ij.ImagePlus;
 import ij.ImageStack;
 import ij.Prefs;
 import ij.io.FileSaver;
+import imagesurf.util.ProgressListener;
 import io.scif.services.DatasetIOService;
 import net.imagej.DatasetService;
 import net.imagej.ImageJ;
+import org.jetbrains.annotations.NotNull;
 import org.scijava.ItemIO;
 import org.scijava.app.StatusService;
 import org.scijava.command.Command;
@@ -40,6 +43,7 @@ import imagesurf.util.Utility;
 import java.io.File;
 import java.io.FileFilter;
 import java.io.IOException;
+import java.util.stream.IntStream;
 
 @Plugin(type = Command.class, headless = true,
 	menuPath = "Plugins>Segmentation>ImageSURF>4b. Batch Apply ImageSURF Classifier")
@@ -105,8 +109,13 @@ public class BatchApplyImageSurf implements Command{
 			return;
 		}
 
-		final RandomForest randomForest = imageSurfClassifier.getRandomForest();
-		randomForest.setNumThreads(Prefs.getThreads());
+		final Classifier randomForest;
+		{
+			final RandomForest rf = imageSurfClassifier.getRandomForest();
+			rf.setNumThreads(Prefs.getThreads());
+			rf.addProgressListener(progressListener);
+			randomForest = rf;
+		}
 
 		File[] imageFiles = imagesPath.listFiles(new FileFilter()
 		{
@@ -162,30 +171,18 @@ public class BatchApplyImageSurf implements Command{
 
 				final ImageStack outputStack = new ImageStack(image.getWidth(), image.getHeight());
 				final int numPixels = image.getWidth() * image.getHeight();
-				boolean featuresCalculated = false;
 
 				int currentSlice = 1;
 				for (int z = 0; z < image.getNSlices(); z++)
 					for (int t = 0; t < image.getNFrames(); t++)
 					{
-						ImageFeatures.ProgressListener imageFeaturesProgressListener = (current, max, message) ->
-								statusService.showStatus(current, max, "Calculating features for plane " + currentSlice + "/" +
-										(image.getNSlices() * image.getNFrames()) + imageProgressString);
-
-						features.addProgressListener(imageFeaturesProgressListener);
-						if (features.calculateFeatures(z, t, imageSurfClassifier.getFeatures()))
-							featuresCalculated = true;
-						features.removeProgressListener(imageFeaturesProgressListener);
+						progressListener.setMessage("Calculating features for plane ", imageProgressString, image, currentSlice);
+						features.calculateFeatures(z, t, imageSurfClassifier.getFeatures());
 
 						final FeatureReader featureReader = features.getReader(z, t, imageSurfClassifier.getFeatures());
 
-						RandomForest.ProgressListener randomForestProgressListener = (current, max, message) ->
-								statusService.showStatus(current, max, "Segmenting plane " + currentSlice + "/" +
-										(image.getNSlices() * image.getNFrames()) + imageProgressString);
-
-						randomForest.addProgressListener(randomForestProgressListener);
-						int[] classes = randomForest.classForInstances(featureReader);
-						randomForest.removeProgressListener(randomForestProgressListener);
+						progressListener.setMessage("Segmenting plane ", imageProgressString, image, currentSlice);
+						int[] classes = randomForest.classForInstances(featureReader, IntStream.range(0, featureReader.getNumInstances()).toArray());
 						byte[] segmentationPixels = new byte[numPixels];
 
 						for (int i = 0; i < numPixels; i++)
@@ -208,6 +205,28 @@ public class BatchApplyImageSurf implements Command{
 			{
 				log.error("Failed to segment image "+imageFile.getAbsolutePath(), e);
 			}
+		}
+	}
+
+	private final BatchApplyProgressListener progressListener = new BatchApplyProgressListener();
+
+	private class BatchApplyProgressListener implements ProgressListener {
+		private String prefix = "", suffix = "";
+		private ImagePlus image = null;
+		private int currentSlice = -1;
+
+
+		protected void setMessage(String prefix, String suffix, ImagePlus image, int currentSlice) {
+			this.prefix = prefix;
+			this.suffix = suffix;
+			this.image = image;
+			this.currentSlice = currentSlice;
+		}
+
+		@Override
+		public void onProgress(int current, int max, @NotNull String message) {
+			statusService.showStatus(current, max, prefix + currentSlice + "/" +
+					(image.getNSlices() * image.getNFrames()) + suffix);
 		}
 	}
 }

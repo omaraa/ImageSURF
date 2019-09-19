@@ -192,9 +192,11 @@ object Utility {
         for (z in 0 until image.nSlices)
             for (t in 0 until image.nFrames) {
 
-                val imageFeaturesProgressListener = ImageFeatures.ProgressListener { current, max, message ->
-                    statusService.showStatus(current, max,
-                            "Calculating features for plane $currentSlice/${image.nChannels * image.nSlices * image.nFrames}")
+                val imageFeaturesProgressListener = object : ProgressListener {
+                    override fun onProgress(current: Int, max: Int, message: String) {
+                        statusService.showStatus(current, max,
+                                "Calculating features for plane $currentSlice/${image.nChannels * image.nSlices * image.nFrames}")
+                    }
                 }
 
                 features.addProgressListener(imageFeaturesProgressListener)
@@ -203,7 +205,7 @@ object Utility {
 
                 val featureReader = features.getReader(z, t, imageSurfClassifier.features)
 
-                val randomForestProgressListener = object : RandomForest.ProgressListener {
+                val randomForestProgressListener = object : ProgressListener {
                     override fun onProgress(current: Int, max: Int, message: String) {
                         statusService.showStatus(current, max, "Segmenting plane " + currentSlice + "/" +
                                 image.nChannels * image.nSlices * image.nFrames)
@@ -233,7 +235,7 @@ object Utility {
         for (z in 0 until features.numSlices)
             for (t in 0 until features.numFrames) {
                 val finalCurrentSlice = currentSlice
-                val imageFeaturesProgressListener = object : ImageFeatures.ProgressListener {
+                val imageFeaturesProgressListener = object : ProgressListener {
                     override fun onProgress(current: Int, max: Int, message: String) {
                         statusService.showStatus(current, max, "Calculating features for plane " + finalCurrentSlice + "/" +
                                 features.numSlices * features.numFrames)
