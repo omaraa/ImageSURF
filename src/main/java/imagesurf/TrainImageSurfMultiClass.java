@@ -195,7 +195,8 @@ public class TrainImageSurfMultiClass implements Command {
         final FeatureCalculator[] selectedFeatures = getSelectedFeatures(pixelType, numChannels);
         final Random random = getRandom();
 
-        FeatureReader reader;
+        final FeatureReaderFactory readerFactory = new FeatureReaderFactory(pixelType);
+        final FeatureReader reader;
         final Object[] trainingExamples;
         try {
             int examplePortion = prefService.getInt(ImageSurfSettings.IMAGESURF_EXAMPLE_PORTION, ImageSurfSettings.DEFAULT_EXAMPLE_PORTION);
@@ -203,25 +204,7 @@ public class TrainImageSurfMultiClass implements Command {
                     random, progressListener, examplePortion, saveCalculatedFeatures,
                     pixelType, selectedFeatures);
 
-            switch (pixelType) {
-                case GRAY_8_BIT:
-
-                    final byte[][] bytes = new byte[trainingExamples.length][];
-                    for (int i = 0; i < bytes.length; i++)
-                        bytes[i] = (byte[]) trainingExamples[i];
-
-                    reader = new ImageFeatures.ByteReader(bytes, trainingExamples.length - 1);
-                    break;
-                case GRAY_16_BIT:
-                    final short[][] shorts = new short[trainingExamples.length][];
-                    for (int i = 0; i < shorts.length; i++)
-                        shorts[i] = (short[]) trainingExamples[i];
-
-                    reader = new ImageFeatures.ShortReader(shorts, trainingExamples.length - 1);
-                    break;
-                default:
-                    throw new RuntimeException("Pixel type " + pixelType + " not supported.");
-            }
+            reader = readerFactory.getReader(trainingExamples);
         } catch (Exception e) {
             throw new RuntimeException("Failed to get training examples", e);
         }

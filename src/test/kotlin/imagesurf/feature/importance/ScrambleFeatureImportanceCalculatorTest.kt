@@ -2,7 +2,7 @@ package imagesurf.feature.importance
 
 import imagesurf.classifier.Classifier
 import imagesurf.feature.FeatureReader
-import imagesurf.feature.ImageFeatures
+import imagesurf.reader.ByteReader
 import org.junit.Test
 
 import org.assertj.core.api.Assertions.*
@@ -24,7 +24,7 @@ class ScrambleFeatureImportanceCalculatorTest {
                     }.toIntArray()
         }
 
-        val data = ImageFeatures.ByteReader(
+        val data = ByteReader(
                 arrayOf(
                         byteArrayOf(0,1,2,3,4,5,6,7), // Feature 1 is index and maps to class
                         byteArrayOf(0,0,0,0,0,0,0,0), // Feature 2 does not contain information

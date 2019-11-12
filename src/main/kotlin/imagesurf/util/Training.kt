@@ -6,6 +6,8 @@ import imagesurf.feature.FeatureReader
 import imagesurf.feature.ImageFeatures
 import imagesurf.feature.PixelType
 import imagesurf.feature.calculator.FeatureCalculator
+import imagesurf.reader.ByteReader
+import imagesurf.reader.ShortReader
 import java.io.File
 import java.util.*
 
@@ -24,8 +26,8 @@ object Training {
         optimisedTrainingExamples[numFeatures] = trainingExamples[trainingExamples.size - 1]
 
         return when (pixelType) {
-            PixelType.GRAY_8_BIT -> ImageFeatures.ByteReader(optimisedTrainingExamples, numFeatures)
-            PixelType.GRAY_16_BIT -> ImageFeatures.ShortReader(optimisedTrainingExamples, numFeatures)
+            PixelType.GRAY_8_BIT -> ByteReader(optimisedTrainingExamples, numFeatures)
+            PixelType.GRAY_16_BIT -> ShortReader(optimisedTrainingExamples, numFeatures)
         }
     }
 

@@ -1,9 +1,9 @@
 package imagesurf.classifier
 
-import imagesurf.feature.ImageFeatures
 import imagesurf.feature.PixelType
 import imagesurf.feature.importance.ScrambleFeatureImportanceCalculator
 import imagesurf.feature.calculator.FeatureCalculator
+import imagesurf.reader.ByteReader
 import imagesurf.util.ProgressListener
 import imagesurf.util.Training
 import org.assertj.core.api.Assertions.*
@@ -47,7 +47,7 @@ class RandomForestTest {
     }
 
     private fun `classifies training pixels accurately`(trainingExamples: Array<ByteArray>) {
-        val reader = ImageFeatures.ByteReader(trainingExamples, trainingExamples.size - 1)
+        val reader = ByteReader(trainingExamples, trainingExamples.size - 1)
         val randomForest = randomForest(reader)
 
         val classifications = randomForest.classForInstances(reader)
@@ -94,12 +94,12 @@ class RandomForestTest {
 
 
     private fun `feature order does not affect importance calculation`(trainingExamples: Array<ByteArray>) {
-        val featureImportance = ImageFeatures.ByteReader(trainingExamples, trainingExamples.size - 1)
+        val featureImportance = ByteReader(trainingExamples, trainingExamples.size - 1)
                 .let {
                     featureImportanceCalculator.calculateFeatureImportance(randomForest(it), it)
                 }.dropLast(1)
 
-        val reversedImportance = ImageFeatures.ByteReader(trainingExamples.reversedArray(), 0)
+        val reversedImportance = ByteReader(trainingExamples.reversedArray(), 0)
                 .let {
                     featureImportanceCalculator.calculateFeatureImportance(randomForest(it), it)
                 }.drop(1)
@@ -144,14 +144,14 @@ class RandomForestTest {
 
     private fun `top features should be sufficient for classification`(trainingExamples: Array<ByteArray>, featureCalculators: Array<FeatureCalculator>) {
 
-        val reader = ImageFeatures.ByteReader(trainingExamples, trainingExamples.size - 1)
+        val reader = ByteReader(trainingExamples, trainingExamples.size - 1)
         val randomForest = randomForest(reader)
 
         val featureImportanceCalculator = ScrambleFeatureImportanceCalculator(42);
 
         val optimalFeatures = featureImportanceCalculator.selectOptimalFeatures(10, reader, randomForest, featureCalculators) { println(it)}
         val optimalTrainingExamples = optimalFeatures.map { featureCalculators.indexOf(it) }.map { trainingExamples[it] } + trainingExamples.last()
-        val optimalReader = ImageFeatures.ByteReader(optimalTrainingExamples, optimalTrainingExamples.lastIndex)
+        val optimalReader = ByteReader(optimalTrainingExamples, optimalTrainingExamples.lastIndex)
 
         assertThat(optimalReader.numFeatures).isEqualTo(11)
 
@@ -189,9 +189,9 @@ class RandomForestTest {
                     }
                 }
 
-        fun randomForest(reader: ImageFeatures.ByteReader): RandomForest = randomForest(reader, rfProgressListener)
+        fun randomForest(reader: ByteReader): RandomForest = randomForest(reader, rfProgressListener)
 
-        fun randomForest(reader: ImageFeatures.ByteReader, rfProgressListener: ProgressListener?): RandomForest {
+        fun randomForest(reader: ByteReader, rfProgressListener: ProgressListener?): RandomForest {
             return RandomForest.Builder()
                     .withNumTrees(500)
                     .withMaxDepth(50)
