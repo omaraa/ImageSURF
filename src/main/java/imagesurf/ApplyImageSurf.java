@@ -75,23 +75,26 @@ public class ApplyImageSurf implements Command{
 		ij.command().run(ApplyImageSurf.class, true);
 	}
 
+	public static ImageStack run(ImageSurfClassifier imageSurfClassifier, ImagePlus image, StatusService statusService) throws Exception {
+		final ImageFeatures features = new ImageFeatures(image);
+
+		if (imageSurfClassifier.getPixelType() != features.pixelType)
+			throw new Exception("Classifier pixel type (" +
+					imageSurfClassifier.getPixelType() + ") does not match image pixel type (" + features.pixelType + ")");
+
+		if (imageSurfClassifier.getNumChannels() != features.numChannels)
+			throw new Exception("Classifier trained for "+imageSurfClassifier.getNumChannels()+" channels. Image has "+features.numChannels+" - cannot segment.");
+
+		return Utility.INSTANCE.segmentImage(imageSurfClassifier, features, image, statusService);
+	}
+
 	@Override
 	public void run()
 	{
 		try
 		{
 			final ImageSurfClassifier imageSurfClassifier = (ImageSurfClassifier) Utility.INSTANCE.deserializeObject(classifierFile, true);
-			final ImageFeatures features = new ImageFeatures(image);
-
-			if (imageSurfClassifier.getPixelType() != features.pixelType)
-				throw new Exception("Classifier pixel type (" +
-						imageSurfClassifier.getPixelType() + ") does not match image pixel type (" + features.pixelType + ")");
-
-			if (imageSurfClassifier.getNumChannels() != features.numChannels)
-				throw new Exception("Classifier trained for "+imageSurfClassifier.getNumChannels()+" channels. Image has "+features.numChannels+" - cannot segment.");
-
-			final ImageStack outputStack = Utility.INSTANCE.segmentImage(imageSurfClassifier, features, image, statusService);
-
+			final ImageStack outputStack = run(imageSurfClassifier, image, statusService);
 			image.setStack(outputStack);
 		}
 		catch (Exception e)

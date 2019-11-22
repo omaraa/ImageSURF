@@ -34,7 +34,7 @@ class RandomForestTest {
 
         val labelImageFile = arrayOf(File(javaClass.getResource("/immuno/annotated/amyloid-beta.tif").file))
         val unlabelledImageFile = arrayOf(File(javaClass.getResource("/immuno/unannotated/amyloid-beta.tif").file))
-        val rawImageFile = arrayOf(File(javaClass.getResource("/immuno/annotated/amyloid-beta.tif").file))
+        val rawImageFile = arrayOf(File(javaClass.getResource("/immuno/raw/amyloid-beta.tif").file))
         val featureFile = null
 
         val selectedFeatures = selectedFeaturesMultiChannel
@@ -80,7 +80,7 @@ class RandomForestTest {
 
         val labelImageFile = arrayOf(File(javaClass.getResource("/immuno/annotated/amyloid-beta.tif").file))
         val unlabelledImageFile = arrayOf(File(javaClass.getResource("/immuno/unannotated/amyloid-beta.tif").file))
-        val rawImageFile = arrayOf(File(javaClass.getResource("/immuno/annotated/amyloid-beta.tif").file))
+        val rawImageFile = arrayOf(File(javaClass.getResource("/immuno/raw/amyloid-beta.tif").file))
         val featureFile = null
 
         val selectedFeatures = PixelType.GRAY_8_BIT.getAllFeatureCalculators(0, 25, 3)
@@ -129,7 +129,7 @@ class RandomForestTest {
 
         val labelImageFile = arrayOf(File(javaClass.getResource("/immuno/annotated/amyloid-beta.tif").file))
         val unlabelledImageFile = arrayOf(File(javaClass.getResource("/immuno/unannotated/amyloid-beta.tif").file))
-        val rawImageFile = arrayOf(File(javaClass.getResource("/immuno/annotated/amyloid-beta.tif").file))
+        val rawImageFile = arrayOf(File(javaClass.getResource("/immuno/raw/amyloid-beta.tif").file))
         val featureFile = null
 
         val selectedFeatures = PixelType.GRAY_8_BIT.getAllFeatureCalculators(0, 25, 3)
