@@ -17,12 +17,17 @@
 
 package imagesurf.feature.calculator;
 
+import ij.Prefs;
+
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ForkJoinPool;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 abstract public class HistogramNeighbourhoodCalculator implements FeatureCalculator, Serializable
 {
@@ -47,12 +52,12 @@ abstract public class HistogramNeighbourhoodCalculator implements FeatureCalcula
 
 	protected interface PixelReader {
 		int get(int index);
+		int numPixels();
 		int numBits();
 	}
 
 	protected interface PixelWriter {
-		void set(int index, int value);
-		void writeRow(int y);
+		void writeRow(int y, double[] row);
 	}
 
 	protected interface Calculator {
@@ -78,26 +83,24 @@ abstract public class HistogramNeighbourhoodCalculator implements FeatureCalcula
 			public int numBits() {
 				return 8;
 			}
+
+			@Override
+			public int numPixels() {
+				return width * height;
+			}
 		};
 
-		final byte[] rowOutput = new byte[width];
 		final byte[] result = new byte[width*height];
 
-		final PixelWriter writer = new PixelWriter() {
-			@Override
-			public void set(int index, int value) {
-				rowOutput[index] = (byte) value;
-			}
+		final PixelWriter writer = (y, row) -> {
+			final byte[] rowOutput = new byte[width];
+			for(int i= 0; i < width; i++)
+				rowOutput[i] = (byte) row[i];
 
-			@Override
-			public void writeRow(int y) {
-				System.arraycopy(rowOutput, 0, result, y*width, width);
-			}
+			System.arraycopy(rowOutput, 0, result, y*width, width);
 		};
 
-		int[] histogram = new int[256];
-
-		calculate(reader, writer, width, height, histogram, h -> {throw new RuntimeException("Calculator not implemented");});
+		calculate(reader, writer, width, height, 256);
 
 		byte[][] resultArray = new byte[][] {result};
 
@@ -107,27 +110,38 @@ abstract public class HistogramNeighbourhoodCalculator implements FeatureCalcula
 		return resultArray;
 	}
 
-	protected void calculate(PixelReader reader, PixelWriter writer, final int width, final int height, int[] histogram, Calculator calculator) {
+	abstract protected Calculator getCalculator(final PixelReader reader, final int numBins);
 
-		CircleRow[] mask = getMaskRows(radius);
+	protected void calculate(final PixelReader reader, final PixelWriter writer, final int width, final int height, int nBins) {
+		final Calculator calculator = getCalculator(reader, nBins);
+
+		final CircleRow[] mask = getMaskRows(radius);
 		final int maskOffset = -radius;
 
-		for(int y = 0; y < height; y++)
-		{
-			fillHistogram(reader, width, height, histogram, mask, maskOffset, y);
+		final ForkJoinPool threadPool = new ForkJoinPool(Prefs.getThreads());
 
-			for(int x = 0; x < width; x++ )
-			{
-				final double entropy = calculator.calculate(histogram);
-				writer.set(x, (int) entropy);
-				moveWindow(reader, width, height, histogram, mask, maskOffset, y, x);
-			}
+		try {
+			threadPool.submit(() ->
+					IntStream.range(0, height).parallel().forEach( y -> {
+						int[] rowHistogram = getHistogram(reader, width, height, nBins, mask, maskOffset, y);
+						final double[] rowOutput = new double[width];
+						for(int x = 0; x < width; x++ )
+						{
+							final double entropy = calculator.calculate(rowHistogram);
+							rowOutput[x] = entropy;
+							rowHistogram = moveWindow(reader, width, height, rowHistogram, mask, maskOffset, y, x);
+						}
 
-			writer.writeRow(y);
+						synchronized (writer) {writer.writeRow(y, rowOutput);}
+					})).get();
+		} catch (InterruptedException | ExecutionException e) {
+			throw new RuntimeException(e);
 		}
 	}
 
-	private void moveWindow(PixelReader reader, int width, int height, int[] histogram, CircleRow[] mask, int maskOffset, int y, int x) {
+	private int[] moveWindow(PixelReader reader, int width, int height, int[] histogram, CircleRow[] mask, int maskOffset, int y, int x) {
+		final int[] moved = Arrays.copyOf(histogram, histogram.length);
+
 		for(int i = 0; i < mask.length; i++) {
 			final int currentY = y + i + maskOffset;
 			if (currentY >= 0 && currentY < height) {
@@ -137,21 +151,23 @@ abstract public class HistogramNeighbourhoodCalculator implements FeatureCalcula
 
 				if (oldX >= 0 && oldX < width) {
 					final int oldValue = reader.get(to1d(oldX, currentY, width));
-					histogram[oldValue]--;
+					moved[oldValue]--;
 				}
 
 				if (newX >= 0 && newX < width) {
 					final int newValue = reader.get(to1d(newX, currentY, width));
 
-					histogram[newValue]++;
+					moved[newValue]++;
 				}
 			}
 		}
+
+		return moved;
 	}
 
-	private void fillHistogram(PixelReader reader, int width, int height, int[] histogram, CircleRow[] mask, int maskOffset, int y) {
+	private int[] getHistogram(PixelReader reader, int width, int height, int numBins, CircleRow[] mask, int maskOffset, int y) {
 
-		Arrays.fill(histogram, 0);
+		int[] histogram = new int[numBins];
 		for(int i = 0; i < mask.length; i++)
 		{
 			final int currentY = y + i + maskOffset;
@@ -166,6 +182,8 @@ abstract public class HistogramNeighbourhoodCalculator implements FeatureCalcula
 				}
 			}
 		}
+
+		return histogram;
 	}
 
 	private final static int to1d(int x, int y, int width) {
@@ -185,26 +203,24 @@ abstract public class HistogramNeighbourhoodCalculator implements FeatureCalcula
 			public int numBits() {
 				return 16;
 			}
+
+			@Override
+			public int numPixels() {
+				return width * height;
+			}
 		};
 
-		final short[] rowOutput = new short[width];
 		final short[] result = new short[width*height];
 
-		final PixelWriter writer = new PixelWriter() {
-			@Override
-			public void set(int index, int value) {
-				rowOutput[index] = (short) value;
-			}
+		final PixelWriter writer = (y, row) -> {
+			final short[] rowOutput = new short[width];
+			for(int i = 0; i < row.length; i++)
+				rowOutput[i] = (short) row[i];
 
-			@Override
-			public void writeRow(int y) {
-				System.arraycopy(rowOutput, 0, result, y*width, width);
-			}
+			System.arraycopy(rowOutput, 0, result, y*width, width);
 		};
 
-		int[] histogram = new int[65536];
-
-		calculate(reader, writer, width, height, histogram, h -> {throw new RuntimeException("Calculator not implemented");});
+		calculate(reader, writer, width, height, 65536);
 
 		short[][] resultArray = new short[][] {result};
 

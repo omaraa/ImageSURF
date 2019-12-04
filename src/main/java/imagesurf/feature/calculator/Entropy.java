@@ -23,7 +23,7 @@ public class Entropy extends HistogramNeighbourhoodCalculator implements Seriali
 {
 	static final long serialVersionUID = 42L;
 
-	private static final double log2 = Math.log(2.0);
+	private static final double one_over_log2 = 1d/Math.log(2.0);
 
 	public Entropy(int radius)
 	{
@@ -31,13 +31,13 @@ public class Entropy extends HistogramNeighbourhoodCalculator implements Seriali
 	}
 
 	@Override
-	protected void calculate(PixelReader reader, PixelWriter writer, int width, int height, int[] histogram, Calculator calculator) {
+	protected Calculator getCalculator(final PixelReader reader, final int numBins) {
 
 		final int min, max;
 		{
 			int tempMin = Integer.MAX_VALUE;
 			int tempMax = Integer.MIN_VALUE;
-			for (int i = 0; i < width * height; i++) {
+			for (int i = 0; i < reader.numPixels(); i++) {
 				final int value = reader.get(i);
 				if (value < tempMin)
 					tempMin = value;
@@ -48,28 +48,33 @@ public class Entropy extends HistogramNeighbourhoodCalculator implements Seriali
 			max = tempMax;
 		}
 
-		final int numBins = histogram.length;
-		final double numBits = reader.numBits();
+		final double binsPerBit;
+		{
+			final double numBits = reader.numBits();
+			binsPerBit = ((double)(numBins)/numBits);
+		}
 
-		calculator = h -> {
-			double total = 0;
-			for (int k = min ; k <= max; k++ )
-				total += h[ k ];
+		return h -> {
+			final double oneOverTotal;
+			{
+				double total = 0;
+				for (int k = min; k <= max; k++)
+					total += h[k];
+				oneOverTotal = 1d/total;
+			}
 
 			double entropy = 0;
 			for (int k = min ; k < max ; k++ )
 			{
 				if (h[k]>0)
 				{
-					double p = h[k]/total; // calculate p
-					entropy += -p * Math.log(p)/log2;
+					double p = h[k]*oneOverTotal; // calculate p
+					entropy += -p * Math.log(p)*one_over_log2;
 				}
 			}
 
-			return (int) Math.floor(entropy * ((double)(numBins)/numBits));
+			return (int) Math.floor(entropy * binsPerBit);
 		};
-
-		super.calculate(reader, writer, width, height, histogram, calculator);
 	}
 
 	@Override
