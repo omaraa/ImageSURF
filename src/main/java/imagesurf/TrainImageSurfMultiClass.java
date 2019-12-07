@@ -51,10 +51,7 @@ import org.scijava.widget.FileWidget;
 import java.io.File;
 import java.io.FileFilter;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 import java.util.stream.IntStream;
 
 @Plugin(type = Command.class, headless = true,
@@ -170,6 +167,10 @@ public class TrainImageSurfMultiClass implements Command {
         checkParameters();
 
         File[] labelFiles = labelPath.listFiles(imageLabelFileFilter);
+
+        if(labelFiles.length == 0)
+            throw new RuntimeException("Could not find any training labels in folder "+labelPath.getAbsolutePath());
+
         final File[] rawImageFiles = Arrays.stream(labelFiles)
                 .map((l) -> new File(rawImagePath, l.getName()))
                 .toArray(File[]::new);
@@ -193,6 +194,9 @@ public class TrainImageSurfMultiClass implements Command {
         }
 
         final FeatureCalculator[] selectedFeatures = getSelectedFeatures(pixelType, numChannels);
+
+        ensureEnoughRamForFeatureImages(rawImageFiles, numChannels, selectedFeatures);
+
         final Random random = getRandom();
 
         final FeatureReaderFactory readerFactory = new FeatureReaderFactory(pixelType);
@@ -569,4 +573,32 @@ public class TrainImageSurfMultiClass implements Command {
         }
     };
 
+    private final void ensureEnoughRamForFeatureImages(File[] rawImageFiles, int numChannels, FeatureCalculator[] featureCalculators) {
+
+        final Optional<Long> featureFilesSize = Arrays.stream(rawImageFiles)
+                .map((file) -> {
+                    if(!file.canRead()) return 0l;
+                    else return file.length();
+                })
+                .max(Long::compare);
+
+        System.out.println("imageSize: "+featureFilesSize.get());
+        System.out.println("numCalculators: "+featureCalculators.length);
+
+        final long ramAvailable = Runtime.getRuntime().maxMemory();
+        final long threads = Prefs.getThreads();
+        final long estimatedRamRequired = (featureFilesSize.orElse(0l)/numChannels) * (featureCalculators.length+threads);
+
+        if(estimatedRamRequired > ramAvailable) {
+            final String errorMessage = String.format("Not enough memory available to calculate features. " +
+                    "Estimated memory required: %,d MiB " +
+                    "Memory available: %,d MiB",
+                    estimatedRamRequired / (1024 * 1024),
+                    ramAvailable / (1024 * 1024)
+            );
+
+            ui.showDialog(errorMessage, DialogPrompt.MessageType.ERROR_MESSAGE);
+            throw new RuntimeException(errorMessage);
+        }
+    }
 }
