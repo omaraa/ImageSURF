@@ -20,6 +20,7 @@ package imagesurf.feature.calculator;
 import io.scif.img.ImgOpener;
 import io.scif.img.SCIFIOImgPlus;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
+import net.imglib2.type.numeric.integer.UnsignedShortType;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -37,27 +38,35 @@ public class FeatureCalculatorTest {
 
     private byte[] bytePixels = null;
     private short[] shortPixels = null;
-    private int width, height;
+    private int byteWidth, byteHeight, shortWidth, shortHeight;
 
     final int[] radii = new int[]{3, 5, 33};
 
     @Before
     public void setUp() {
         String imagePath = getClass().getResource("/images/Nomarski-14DIV/raw.png").getFile();
+        String shortImagePath = getClass().getResource("/images/abeta-16bit/Identity.tif").getFile();
 
         final SCIFIOImgPlus<UnsignedByteType> byteImage = (SCIFIOImgPlus<UnsignedByteType>) imgOpener.openImgs(imagePath).get(0);
+        final SCIFIOImgPlus<UnsignedShortType> shortImage = (SCIFIOImgPlus<UnsignedShortType>) imgOpener.openImgs(shortImagePath).get(0);
+
 
         bytePixels = new byte[(int) byteImage.size()];
-        shortPixels = new short[(int) byteImage.size()];
+        shortPixels = new short[(int) shortImage.size()];
+
         int currentIndex = 0;
-        for (UnsignedByteType b : byteImage) {
-            bytePixels[currentIndex] = (byte) b.get();
-            shortPixels[currentIndex++] = (short) (b.get() << 8);
+        for (UnsignedByteType b : byteImage)
+            bytePixels[currentIndex++] = (byte) b.get();
 
-        }
+        currentIndex = 0;
+        for (UnsignedShortType s : shortImage)
+            shortPixels[currentIndex++] = (short) (s.get());
 
-        width = (int) byteImage.getImageMetadata().getAxisLength(0);
-        height = (int) byteImage.getImageMetadata().getAxisLength(1);
+        byteWidth = (int) byteImage.getImageMetadata().getAxisLength(0);
+        byteHeight = (int) byteImage.getImageMetadata().getAxisLength(1);
+
+        shortWidth = (int) shortImage.getImageMetadata().getAxisLength(0);
+        shortHeight = (int) shortImage.getImageMetadata().getAxisLength(1);
 
     }
 
@@ -65,7 +74,7 @@ public class FeatureCalculatorTest {
     public void testCalculateMeans() throws Exception {
         for (int i : radii) {
             FeatureCalculator featureCalculator = new Mean(i);
-            testByteFeatureCalculator(featureCalculator);
+            testFeatureCalculator(featureCalculator);
         }
     }
 
@@ -73,8 +82,7 @@ public class FeatureCalculatorTest {
     public void testCalculateMedians() throws Exception {
         for (int i : radii) {
             FeatureCalculator featureCalculator = new Median(i);
-            testByteFeatureCalculator(featureCalculator);
-            testShortFeatureCalculator(featureCalculator);
+            testFeatureCalculator(featureCalculator);
         }
     }
 
@@ -82,8 +90,7 @@ public class FeatureCalculatorTest {
     public void testCalculateMins() throws Exception {
         for (int i : radii) {
             FeatureCalculator featureCalculator = new Min(i);
-            testByteFeatureCalculator(featureCalculator);
-            testShortFeatureCalculator(featureCalculator);
+            testFeatureCalculator(featureCalculator);
         }
     }
 
@@ -91,8 +98,7 @@ public class FeatureCalculatorTest {
     public void testCalculateMaxs() throws Exception {
         for (int i : radii) {
             FeatureCalculator featureCalculator = new Max(i);
-            testByteFeatureCalculator(featureCalculator);
-            testShortFeatureCalculator(featureCalculator);
+            testFeatureCalculator(featureCalculator);
         }
     }
 
@@ -100,7 +106,7 @@ public class FeatureCalculatorTest {
     public void testCalculateEntropys() throws Exception {
         for (int i : radii) {
             FeatureCalculator featureCalculator = new Entropy(i);
-            testByteFeatureCalculator(featureCalculator);
+            testFeatureCalculator(featureCalculator);
         }
     }
 
@@ -108,7 +114,7 @@ public class FeatureCalculatorTest {
     public void testCalculateGaussians() throws Exception {
         for (int i : radii) {
             FeatureCalculator featureCalculator = new Gaussian(i);
-            testByteFeatureCalculator(featureCalculator);
+            testFeatureCalculator(featureCalculator);
         }
     }
 
@@ -116,8 +122,7 @@ public class FeatureCalculatorTest {
     public void testCalculateRanges() throws Exception {
         for (int i : radii) {
             FeatureCalculator featureCalculator = new Range(i);
-            testByteFeatureCalculator(featureCalculator);
-            testShortFeatureCalculator(featureCalculator);
+            testFeatureCalculator(featureCalculator);
         }
     }
 
@@ -125,7 +130,7 @@ public class FeatureCalculatorTest {
     public void testCalculateDifferenceOf() throws Exception {
         for (int i : radii) {
             FeatureCalculator featureCalculator = new DifferenceOf(Identity.get(), new Mean(i));
-            testByteFeatureCalculator(featureCalculator);
+            testFeatureCalculator(featureCalculator);
         }
     }
 
@@ -133,7 +138,7 @@ public class FeatureCalculatorTest {
     public void testCalculateStandardDeviation() throws Exception {
         for (int i : radii) {
             FeatureCalculator featureCalculator = new StandardDeviation(i);
-            testByteFeatureCalculator(featureCalculator);
+            testFeatureCalculator(featureCalculator);
         }
     }
 
@@ -141,10 +146,9 @@ public class FeatureCalculatorTest {
     public void testCalculateLocalIntensity() throws Exception {
         for (int i : radii) {
             FeatureCalculator featureCalculator = new LocalIntensity(i);
-            testByteFeatureCalculator(featureCalculator);
+            testFeatureCalculator(featureCalculator);
         }
     }
-
 
     @Test
     public void testCalculateDifferenceOfGaussians() throws Exception {
@@ -152,8 +156,13 @@ public class FeatureCalculatorTest {
             for (int j : radii)
                 if (j < i) {
                     FeatureCalculator featureCalculator = new DifferenceOf(new Gaussian(j), new Gaussian(i));
-                    testByteFeatureCalculator(featureCalculator);
+                    testFeatureCalculator(featureCalculator);
                 }
+    }
+
+    private void testFeatureCalculator(FeatureCalculator featureCalculator) throws Exception {
+        testByteFeatureCalculator(featureCalculator);
+        testShortFeatureCalculator(featureCalculator);
     }
 
     private void testByteFeatureCalculator(FeatureCalculator f) throws Exception {
@@ -164,14 +173,14 @@ public class FeatureCalculatorTest {
         FeatureCalculator[] dependencies = f.getDependencies();
         byte[][][] dependencyResults = new byte[dependencies.length][][];
         for (int i = 0; i < dependencies.length; i++) {
-            byte[][] currentDependencyResults = dependencies[i].calculate(bytePixels, width, height, calculated);
+            byte[][] currentDependencyResults = dependencies[i].calculate(bytePixels, byteWidth, byteHeight, calculated);
             dependencyResults[i] = new byte[currentDependencyResults.length][];
             for (int j = 0; j < currentDependencyResults.length; j++) {
                 dependencyResults[i][j] = Arrays.copyOf(currentDependencyResults[j], currentDependencyResults[j].length);
             }
         }
 
-        byte[][] result = f.calculate(bytePixelsCopy, width, height, calculated);
+        byte[][] result = f.calculate(bytePixelsCopy, byteWidth, byteHeight, calculated);
 
         assertArrayEquals(f.getDescription() + " should not mutate input array", bytePixels, bytePixelsCopy);
 
@@ -200,14 +209,14 @@ public class FeatureCalculatorTest {
         FeatureCalculator[] dependencies = f.getDependencies();
         short[][][] dependencyResults = new short[dependencies.length][][];
         for (int i = 0; i < dependencies.length; i++) {
-            short[][] currentDependencyResults = dependencies[i].calculate(shortPixels, width, height, calculated);
+            short[][] currentDependencyResults = dependencies[i].calculate(shortPixels, shortWidth, shortHeight, calculated);
             dependencyResults[i] = new short[currentDependencyResults.length][];
             for (int j = 0; j < currentDependencyResults.length; j++) {
                 dependencyResults[i][j] = Arrays.copyOf(currentDependencyResults[j], currentDependencyResults[j].length);
             }
         }
 
-        short[][] result = f.calculate(shortPixelsCopy, width, height, calculated);
+        short[][] result = f.calculate(shortPixelsCopy, shortWidth, shortHeight, calculated);
 
         assertArrayEquals(f.getDescription() + " should not mutate input array", shortPixels, shortPixelsCopy);
 
@@ -249,11 +258,21 @@ public class FeatureCalculatorTest {
     }
 
     private short[] getShorts(String resultDescription) throws Exception {
-        byte[] bytes = getBytes(resultDescription);
-        short[] shorts = new short[bytes.length];
+        String path = "/images/abeta-16bit/" + (resultDescription + ".tif");
+        URL url = getClass().getResource(path);
+        String imagePath = url.getFile();
+        imagePath = imagePath.replace("%20", " ");
 
-        for (int i = 0; i < bytes.length; i++)
-            shorts[i] = (short) (bytes[i] << 8);
+        File file = new File(imagePath);
+        if (!file.exists())
+            throw new RuntimeException(file.getAbsolutePath() + " does not exist");
+
+        SCIFIOImgPlus<UnsignedShortType> image = (SCIFIOImgPlus<UnsignedShortType>) imgOpener.openImgs(imagePath).get(0);
+
+        short[] shorts = new short[(int) image.size()];
+        int currentIndex = 0;
+        for (UnsignedShortType b : image)
+            shorts[currentIndex++] = (short) b.get();
 
         return shorts;
     }
