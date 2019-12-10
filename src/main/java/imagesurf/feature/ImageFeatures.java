@@ -26,6 +26,7 @@ import imagesurf.feature.calculator.FeatureCalculator;
 import imagesurf.feature.calculator.Identity;
 import imagesurf.reader.ByteReader;
 import imagesurf.reader.ShortReader;
+import imagesurf.util.ImageSurfEnvironment;
 import imagesurf.util.ProgressListener;
 import imagesurf.util.ProgressNotifier;
 import imagesurf.util.Utility;
@@ -35,6 +36,7 @@ import java.io.Serializable;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 public class ImageFeatures implements Serializable, ProgressNotifier
@@ -559,15 +561,8 @@ public class ImageFeatures implements Serializable, ProgressNotifier
 
 	public boolean calculateFeatures(int z, int t, FeatureCalculator[] features) throws ExecutionException, InterruptedException
 	{
-		ExecutorService executorService = Executors.newFixedThreadPool(Prefs.getThreads());
-		try
-		{
-			return calculateFeatures(z, t, features, executorService);
-		}
-		finally
-		{
-			executorService.shutdown();
-		}
+		ExecutorService executorService = ImageSurfEnvironment.getFeatureExecutor();
+		return calculateFeatures(z, t, features, executorService);
 	}
 
 	/**
@@ -582,7 +577,7 @@ public class ImageFeatures implements Serializable, ProgressNotifier
 	 */
 	public boolean calculateFeatures(int z, int t, FeatureCalculator[] features, ExecutorService executorService) throws ExecutionException, InterruptedException
 	{
-		List<Future> waitFutures = new ArrayList<Future>();
+		long start = System.currentTimeMillis();
 
 		final Map<FeatureCalculator, Object> featureCache = this.features[getFeatureIndex(z, t)];
 		final FeatureCalculator[] featuresToCalculate = Arrays.stream(features)
@@ -592,100 +587,68 @@ public class ImageFeatures implements Serializable, ProgressNotifier
 		if(featuresToCalculate.length == 0)
 			return false;
 
-		final Object monitor = featureCache;
-
-		final List<FeatureCalculator> processingFeatureCalculators = new Vector<FeatureCalculator>();
 		final List<FeatureCalculator> remainingFeatureCalculators = new Vector<FeatureCalculator>(Arrays.asList(featuresToCalculate));
-
-		long start = System.currentTimeMillis();
-
-		while (!remainingFeatureCalculators.isEmpty() || !processingFeatureCalculators.isEmpty())
+		while (!remainingFeatureCalculators.isEmpty())
 		{
-			final List<FeatureCalculator> toAdd = new ArrayList<FeatureCalculator>();
+			final List<FeatureCalculator> toProcess = new ArrayList<FeatureCalculator>();
 
 			//Add imagesurf.feature calculators with no dependencies or dependencies already calculated to the list
-			for (FeatureCalculator featureCalculator : remainingFeatureCalculators)
-			{
-				if (featureCalculator.getDependencies().length == 0)
-				{
-					toAdd.add(featureCalculator);
-				}
-				else
-				{
+			for (FeatureCalculator featureCalculator : remainingFeatureCalculators) {
+				if (featureCalculator.getDependencies().length == 0) {
+					toProcess.add(featureCalculator);
+				} else {
 					boolean dependenciesProcessing = false;
-					for (FeatureCalculator dependency : featureCalculator.getDependenciesWithTags())
-					{
-						if (processingFeatureCalculators.contains(dependency) || toAdd.contains(dependency))
-						{
+					for (FeatureCalculator dependency : featureCalculator.getDependenciesWithTags()) {
+						if (toProcess.contains(dependency)) {
 							dependenciesProcessing = true;
 							break;
 						}
 					}
 
 					if (!dependenciesProcessing)
-						toAdd.add(featureCalculator);
+						toProcess.add(featureCalculator);
 				}
 			}
 
-			for (final FeatureCalculator featureCalculator : new ArrayList<FeatureCalculator>(toAdd))
-			{
-				remainingFeatureCalculators.remove(featureCalculator);
-				processingFeatureCalculators.add(featureCalculator);
-				toAdd.remove(featureCalculator);
+			remainingFeatureCalculators.removeAll(toProcess);
 
-				Runnable runnable = new Runnable()
-				{
-					@Override
-					public void run()
-					{
-						long start = System.currentTimeMillis();
-						//Feature image is added to cache upon completion
+			final AtomicInteger numProcessed = new AtomicInteger(0);
+			final int numProcessing = toProcess.size();
+			final int numToSchedule = remainingFeatureCalculators.size();
+
+
+			executorService.submit(() ->
+				toProcess.stream()
+					.parallel()
+					.forEach( (featureCalculator -> {
+						long featureStart = System.currentTimeMillis();
 
 						final int featureMergedChannelIndex = getFeatureMergedChannelIndex(featureCalculator);
 						Object imagePixels = getMergedChannelPixels(featureMergedChannelIndex, z, t);
 
+						//Feature image is added to cache upon completion
 						featureCalculator.calculate(imagePixels, width, height, featureCache);
 
-						processingFeatureCalculators.remove(featureCalculator);
+						long computationTime = System.currentTimeMillis() - featureStart;
+						recordComputationTime(featureCalculator, computationTime, pixelsPerChannel*numChannels);
 
-						long computationTime = System.currentTimeMillis() - start;
-						synchronized (monitor)
-						{
-							recordComputationTime(featureCalculator, computationTime, pixelsPerChannel*numChannels);
-							int numRemaining = processingFeatureCalculators.size() + remainingFeatureCalculators.size();
+						int numRemaining = numProcessing - numProcessed.incrementAndGet() + numToSchedule;
 
-							if(verbose)
-								System.out.println("Calculated imagesurf.feature "+(featuresToCalculate.length -
-										numRemaining)+"/"+featuresToCalculate.length+" for " + title + ": " + featureCalculator.getDescriptionWithTags() + " in " + (System.currentTimeMillis() - start) + "ms. [" + numRemaining + " remaining]");
 
-							onProgress(featuresToCalculate.length - numRemaining, featuresToCalculate.length, "Calculated imagesurf.feature "+title);
+						if(verbose)
+							System.out.println("Calculated imagesurf.feature "+(featuresToCalculate.length -
+									numRemaining)+"/"+featuresToCalculate.length+" for " + title + ": " + featureCalculator.getDescriptionWithTags() + " in " + (System.currentTimeMillis() - start) + "ms. [" + numRemaining + " remaining]");
 
-							monitor.notifyAll();
-						}
-					}
-				};
+						onProgress(featuresToCalculate.length - numRemaining, featuresToCalculate.length, "Calculated imagesurf.feature "+title);
 
-				executorService.execute(runnable);
-			}
+					}))
+			).get();
 
-			if (!processingFeatureCalculators.isEmpty() || !remainingFeatureCalculators.isEmpty() )
-			{
-				synchronized (monitor)
-				{
-					monitor.wait(1000);
-				}
-			}
+			toProcess.clear();
 		}
 
 		if(verbose)
 			System.out.println("Calculated all features for " + title + " in " + (System.currentTimeMillis() - start) + "ms.");
-
-		for (Future future : waitFutures)
-		{
-			future.get();
-			if (future.isCancelled())
-				throw new RuntimeException("Concurrent calculation of image derivatives failed.");
-		}
 
 		return true;
 	}
