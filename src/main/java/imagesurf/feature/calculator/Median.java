@@ -17,15 +17,50 @@
 
 package imagesurf.feature.calculator;
 
-import java.io.Serializable;
+import imagesurf.feature.calculator.histogram.Histogram;
+import imagesurf.feature.calculator.histogram.NeighbourhoodHistogramCalculator;
+import imagesurf.feature.calculator.histogram.PixelReader;
 
-public class Median extends Rank implements Serializable
+import java.io.Serializable;
+import java.util.Iterator;
+
+public class Median extends NeighbourhoodHistogramCalculator implements Serializable
 {
 	static final long serialVersionUID = 42L;
 
-	public Median(double radius)
+	public Median(int radius)
 	{
-		super(radius, RankFilter.Type.MEDIAN);
+		super(radius);
+	}
+
+	@Override
+	protected Calculator getCalculator(final PixelReader reader, final int numBins) {
+
+		return pw -> {
+			final int totalPixels = pw.getNumPixels();
+			final int halfTotal = totalPixels / 2;
+			int counted = 0;
+
+			final int numEntries = pw.getNumUniqueValues();
+			final Iterator<Histogram.Bin> it = pw.getHistogramIterator();
+
+			for(int i = 0; i < numEntries; i++)
+			{
+				final Histogram.Bin b = it.next();
+				counted += b.getCount();
+
+				if(counted >= halfTotal)
+					return b.value;
+			}
+
+			throw new RuntimeException("Failed to calculate median");
+		};
+	}
+
+	@Override
+	public String getName()
+	{
+		return "Median";
 	}
 
 	@Override
@@ -35,8 +70,25 @@ public class Median extends Rank implements Serializable
 	}
 
 	@Override
-	public String getName()
+	public boolean equals(Object o)
 	{
-		return "Median";
+		if (this == o)
+			return true;
+		if (!(o instanceof Median))
+			return false;
+
+		Median median = (Median) o;
+
+		if (getRadius() != median.getRadius())
+			return false;
+		return tags.equals(median.tags);
+	}
+
+	@Override
+	public int hashCode()
+	{
+		int result = getRadius();
+		result = 31 * result + tags.hashCode();
+		return result;
 	}
 }
