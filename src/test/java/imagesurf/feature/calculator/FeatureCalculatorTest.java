@@ -17,6 +17,8 @@
 
 package imagesurf.feature.calculator;
 
+import imagesurf.feature.calculator.histogram.MultipleFeatureCalculator;
+import imagesurf.feature.calculator.histogram.NeighbourhoodHistogramCalculator;
 import io.scif.img.ImgOpener;
 import io.scif.img.SCIFIOImgPlus;
 import net.imglib2.type.numeric.integer.UnsignedByteType;
@@ -158,6 +160,15 @@ public class FeatureCalculatorTest {
                     FeatureCalculator featureCalculator = new DifferenceOf(new Gaussian(j), new Gaussian(i));
                     testFeatureCalculator(featureCalculator);
                 }
+    }
+
+    @Test
+    public void testCalculateMulti() throws Exception {
+        for (int i : radii) {
+            FeatureCalculator featureCalculator = new MultipleFeatureCalculator(
+                    new NeighbourhoodHistogramCalculator[] {new Entropy(i), new Median(i)});
+            testFeatureCalculator(featureCalculator);
+        }
     }
 
     private void testFeatureCalculator(FeatureCalculator featureCalculator) throws Exception {

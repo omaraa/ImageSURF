@@ -8,7 +8,7 @@
     <parent>
         <groupId>org.scijava</groupId>
         <artifactId>pom-scijava</artifactId>
-        <version>26.0.0</version>
+        <version>27.0.1</version>
         <relativePath />
     </parent>
 
@@ -78,7 +78,7 @@
                     </execution>
                 </executions>
                 <configuration>
-                    <source>8</source>
+                    <source>13</source>
                     <target>8</target>
                 </configuration>
             </plugin>
@@ -100,6 +100,13 @@
                         </configuration>
                     </execution>
                 </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <argLine>-Xms1024m -Xmx2048m</argLine>
+                </configuration>
             </plugin>
         </plugins>
     </build>
@@ -134,7 +141,7 @@
     <properties>
         <license.licenseName>gpl_v2</license.licenseName>
         <license.copyrightOwners>Aidan O'Mara</license.copyrightOwners>
-        <kotlin.version>1.2.51</kotlin.version>
+        <enforcer.skip>true</enforcer.skip>
     </properties>
 
     <developers>
@@ -187,7 +194,7 @@
         </dependency>
         <dependency>
             <groupId>org.jetbrains.kotlin</groupId>
-            <artifactId>kotlin-test</artifactId>
+            <artifactId>kotlin-test-junit</artifactId>
             <version>${kotlin.version}</version>
             <scope>test</scope>
         </dependency>

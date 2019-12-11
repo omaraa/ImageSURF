@@ -50,7 +50,7 @@ public class Median extends NeighbourhoodHistogramCalculator implements Serializ
 				counted += b.getCount();
 
 				if(counted >= halfTotal)
-					return b.value;
+					return new int[] {b.value};
 			}
 
 			throw new RuntimeException("Failed to calculate median");

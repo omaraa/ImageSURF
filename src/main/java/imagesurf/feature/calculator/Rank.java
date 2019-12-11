@@ -102,7 +102,7 @@ abstract class Rank implements FeatureCalculator, Serializable
 	}
 
 	@Override
-	public Enumeration<String> getAllTags()
+	public Enumeration<String> getTagNames()
 	{
 		return tags.keys();
 	}

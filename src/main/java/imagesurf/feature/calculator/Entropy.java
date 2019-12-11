@@ -42,11 +42,11 @@ public class Entropy extends NeighbourhoodHistogramCalculator implements Seriali
 
 		return pw -> {
 
-			final double oneOverTotal = 1d / pw.getNumPixels();
+				final double oneOverTotal = 1d / pw.getNumPixels();
 
-			double entropy = 0;
-			final int numEntries = pw.getNumUniqueValues();
-			final Iterator<Histogram.Bin> it = pw.getHistogramIterator();
+				double entropy = 0;
+				final int numEntries = pw.getNumUniqueValues();
+				final Iterator<Histogram.Bin> it = pw.getHistogramIterator();
 
 			//Use a for loop rather than foreach to reduce overhead ot it.hasNext() calls
 			for(int i = 0; i < numEntries; i++)
@@ -56,7 +56,7 @@ public class Entropy extends NeighbourhoodHistogramCalculator implements Seriali
 				entropy += -p * Math.log(p) * one_over_log2;
 			}
 
-			return (int) Math.floor(entropy * binsPerBit);
+			return new int[] {(int) Math.floor(entropy * binsPerBit)};
 		};
 	}
 

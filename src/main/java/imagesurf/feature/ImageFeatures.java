@@ -19,11 +19,12 @@ package imagesurf.feature;
 
 import ij.CompositeImage;
 import ij.ImagePlus;
-import ij.Prefs;
 import ij.process.ByteProcessor;
 import ij.process.ShortProcessor;
 import imagesurf.feature.calculator.FeatureCalculator;
 import imagesurf.feature.calculator.Identity;
+import imagesurf.feature.calculator.histogram.MultipleFeatureCalculator;
+import imagesurf.feature.calculator.histogram.NeighbourhoodHistogramCalculator;
 import imagesurf.reader.ByteReader;
 import imagesurf.reader.ShortReader;
 import imagesurf.util.ImageSurfEnvironment;
@@ -612,10 +613,24 @@ public class ImageFeatures implements Serializable, ProgressNotifier
 
 			remainingFeatureCalculators.removeAll(toProcess);
 
+			List<MultipleFeatureCalculator> multiCalculators = toProcess.stream()
+					.filter( f -> f instanceof NeighbourhoodHistogramCalculator)
+					.map ( f -> (NeighbourhoodHistogramCalculator) f)
+					.collect(Collectors.groupingBy(FeatureCalculator::getRadius, Collectors.groupingBy(FeatureCalculator::getTags)))
+					.values()
+					.stream()
+					.flatMap( e -> e.values().stream().map(MultipleFeatureCalculator::new))
+					.collect(Collectors.toList());
+
+			toProcess.removeAll(multiCalculators.stream()
+							.flatMap( f -> Arrays.stream(f.getFeatures()))
+							.collect(Collectors.toList()));
+
+			toProcess.addAll(multiCalculators);
+
 			final AtomicInteger numProcessed = new AtomicInteger(0);
 			final int numProcessing = toProcess.size();
 			final int numToSchedule = remainingFeatureCalculators.size();
-
 
 			executorService.submit(() ->
 				toProcess.stream()

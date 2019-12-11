@@ -95,7 +95,7 @@ public interface FeatureCalculator extends Serializable
 	{
 		FeatureCalculator[] dependencies = getDependencies();
 
-		Enumeration<String> tags = getAllTags();
+		Enumeration<String> tags = getTagNames();
 
 		while (tags.hasMoreElements())
 		{
@@ -113,9 +113,48 @@ public interface FeatureCalculator extends Serializable
 
 	int getRadius();
 
+	class Tag {
+		final String name;
+		final Object value;
+
+		@Override
+		public boolean equals(Object o) {
+			if (this == o) return true;
+			if (o == null || getClass() != o.getClass()) return false;
+			Tag tag = (Tag) o;
+			return name.equals(tag.name) &&
+					value.equals(tag.value);
+		}
+
+		@Override
+		public int hashCode() {
+			return Objects.hash(name, value);
+		}
+
+		public Tag(String name, Object value) {
+			this.name = name;
+			this.value = value;
+		}
+	}
+
+	default Collection<Tag> getTags() {
+		List<Tag> tags = new LinkedList<>();
+
+		Enumeration<String> e = getTagNames();
+
+		while (e.hasMoreElements()) {
+			String tagName = e.nextElement();
+			tags.add(new Tag(tagName, getTag(tagName)));
+		}
+
+		tags.sort(Comparator.comparing(a -> a.name));
+
+		return tags;
+	}
+
 	Object getTag(String tagName);
 	void setTag(String tagName,Object tagValue);
-	Enumeration<String> getAllTags();
+	Enumeration<String> getTagNames();
 	void removeTag(String tagName);
 	default void removeTags(Collection<String> tagNames)
 	{
@@ -125,7 +164,7 @@ public interface FeatureCalculator extends Serializable
 
 	default boolean hasTag(String tagName)
 	{
-		Enumeration<String> tags = getAllTags();
+		Enumeration<String> tags = getTagNames();
 
 		while (tags.hasMoreElements())
 			if(tags.nextElement().equals(tagName))
@@ -138,7 +177,7 @@ public interface FeatureCalculator extends Serializable
 	{
 		StringBuilder description = new StringBuilder(getDescription());
 
-		Enumeration<String> tags = getAllTags();
+		Enumeration<String> tags = getTagNames();
 
 		if(tags.hasMoreElements())
 		{

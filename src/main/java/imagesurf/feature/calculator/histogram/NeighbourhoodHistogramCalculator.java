@@ -19,10 +19,15 @@ package imagesurf.feature.calculator.histogram;
 
 import imagesurf.feature.calculator.FeatureCalculator;
 import imagesurf.util.ImageSurfEnvironment;
+import org.jetbrains.annotations.NotNull;
 
 import java.io.Serializable;
-import java.util.*;
-import java.util.concurrent.*;
+import java.util.Arrays;
+import java.util.Enumeration;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
 import java.util.stream.IntStream;
 
 abstract public class NeighbourhoodHistogramCalculator implements FeatureCalculator, Serializable
@@ -47,12 +52,14 @@ abstract public class NeighbourhoodHistogramCalculator implements FeatureCalcula
 	}
 
 	protected interface PixelWriter {
-		void writeRow(int y, double[] row);
+		void writeRow(int y, double[][] row);
 	}
 
 	protected interface Calculator {
-		int calculate(PixelWindow pixelWindow);
+		int[] calculate(PixelWindow pixelWindow);
 	}
+
+	abstract protected Calculator getCalculator(final PixelReader reader, final int numBins);
 
 	@Override
 	public FeatureCalculator[] getDependencies()
@@ -61,9 +68,157 @@ abstract public class NeighbourhoodHistogramCalculator implements FeatureCalcula
 	}
 
 	@Override
-	public byte[][] calculate(final byte[] pixels, final int width, final int height, final Map<FeatureCalculator, byte[][]> calculated)
-	{
-		final PixelReader reader = new PixelReader() {
+	public byte[][] calculate(final byte[] pixels, final int width, final int height, final Map<FeatureCalculator, byte[][]> calculated) {
+		return calculateMultiple(pixels, new NeighbourhoodHistogramCalculator[] {this}, width, height, calculated);
+	}
+
+	@Override
+	public short[][] calculate(short[] pixels, int width, int height, Map<FeatureCalculator, short[][]> calculated) {
+		return calculateMultiple(pixels, new NeighbourhoodHistogramCalculator[] {this}, width, height, calculated);
+	}
+
+	protected void calculate(final PixelReader reader, final PixelWriter writer, final int width, final int height, int nBins) {
+		calculateMultiple(reader,
+				new NeighbourhoodHistogramCalculator[] { this },
+				new PixelWriter[] { writer },
+				width,
+				height,
+				nBins);
+	}
+
+	private static void calculateMultiple(final PixelReader reader,
+										  final NeighbourhoodHistogramCalculator[] features,
+										  final PixelWriter[] writers,
+										  final int width,
+										  final int height,
+										  final int nBins) {
+
+		final Calculator[] calculators = Arrays.stream(features)
+				.map( f -> f.getCalculator(reader, nBins))
+				.toArray(Calculator[]::new);
+
+		final int nCalculators = calculators.length;
+		final int radius = features[0].radius;
+		final Mask mask = Mask.get(radius);
+		final int maskOffset = -radius;
+
+		ExecutorService threadPool = ImageSurfEnvironment.getFeatureExecutor();
+
+		try {
+			threadPool.submit(() ->
+					IntStream.range(0, height)
+							.parallel()
+							.forEach(y -> {
+								PixelWindow pixelWindow = PixelWindow.get(reader, width, height, mask, maskOffset, y);
+								final double[][][] rowOutput = Arrays.stream(features)
+										.map( (f) -> new double[f.getNumImagesReturned()][width])
+										.toArray(double[][][]::new);
+
+								for (int x = 0; x < width; x++) {
+									for (int c = 0; c < nCalculators; c++) {
+										final int[] values = calculators[c].calculate(pixelWindow);
+										for(int v = 0; v < values.length; v++)
+											rowOutput[c][v][x] = values[v];
+									}
+									pixelWindow.moveWindow();
+								}
+
+								for (int c = 0; c < nCalculators; c++)
+									synchronized (writers[c]) {
+										writers[c].writeRow(y, rowOutput[c]);
+									}
+
+							})
+			).get();
+		} catch (InterruptedException | ExecutionException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	public static byte[][] calculateMultiple(byte[] pixels,
+											 NeighbourhoodHistogramCalculator[] features,
+											 int width,
+											 int height,
+											 Map<FeatureCalculator, byte[][]> calculated) {
+		if(features.length < 1)
+			throw new RuntimeException("Features array must contain at least 1 calculator");
+
+		if(Arrays.stream(features).mapToInt( f -> f.radius).distinct().count() != 1)
+			throw new RuntimeException("Cannot calculate multiple features with differing radius");
+
+		final PixelReader reader = bytePixelReader(pixels, width, height);
+
+		final byte[][][] results = Arrays.stream(features)
+				.map( (f) -> new byte[f.getNumImagesReturned()][width * height])
+				.toArray(byte[][][]::new);
+		final PixelWriter[] writers = Arrays.stream(results)
+				.map((r) -> bytePixelWriter(width, r)).toArray(PixelWriter[]::new);
+
+		calculateMultiple(reader, features, writers, width, height, 256);
+
+		for(int i = 0; i < features.length; i++)
+			calculated.put(features[i], results[i]);
+
+		final int numOutImages = Arrays.stream(results).mapToInt( b -> b.length).sum();
+		final byte[][] out = new byte[numOutImages][];
+		int c = 0;
+		for(byte[][] bytes : results)
+			for(byte[] b : bytes)
+				out[c++] = b;
+
+			return out;
+	}
+
+	public static short[][] calculateMultiple(short[] pixels,
+											  NeighbourhoodHistogramCalculator[] features,
+											  int width,
+											  int height,
+											  Map<FeatureCalculator, short[][]> calculated) {
+		if(features.length < 1)
+			throw new RuntimeException("Features array must contain at least 1 calculator");
+
+		if(Arrays.stream(features).mapToInt( f -> f.radius).distinct().count() != 1)
+			throw new RuntimeException("Cannot calculate multiple features with differing radius");
+
+		final PixelReader reader = shortPixelReader(pixels, width, height);
+
+		final short[][][] results = Arrays.stream(features)
+				.map( (f) -> new short[f.getNumImagesReturned()][width * height])
+				.toArray(short[][][]::new);
+		final PixelWriter[] writers = Arrays.stream(results)
+				.map((r) -> shortPixelWriter(width, r)).toArray(PixelWriter[]::new);
+
+		calculateMultiple(reader, features, writers, width, height, 65536);
+
+		for(int i = 0; i < features.length; i++)
+			calculated.put(features[i], results[i]);
+
+		final int numOutImages = Arrays.stream(results).mapToInt( s -> s.length).sum();
+		final short[][] out = new short[numOutImages][];
+		int c = 0;
+		for(short[][] shorts : results)
+			for(short[] s : shorts)
+				out[c++] = s;
+
+		return out;
+	}
+
+	@NotNull
+	private static PixelWriter bytePixelWriter(int width, byte[][] result) {
+		return (y, row) -> {
+			for(int v = 0; v < result.length; v ++) {
+				final byte[] rowOutput = new byte[width];
+				for(int i = 0; i < rowOutput.length; i++)
+					rowOutput[i] = (byte) row[v][i];
+
+				System.arraycopy(rowOutput, 0, result[v], y*width, width);
+			}
+		};
+	}
+
+	@NotNull
+	private static PixelReader bytePixelReader(byte[] pixels, int width, int height) {
+		return new PixelReader() {
 			@Override
 			public int get(int index) {
 				return pixels[index] & 0xff;
@@ -79,98 +234,40 @@ abstract public class NeighbourhoodHistogramCalculator implements FeatureCalcula
 				return width * height;
 			}
 		};
-
-		final byte[] result = new byte[width*height];
-
-		final PixelWriter writer = (y, row) -> {
-			final byte[] rowOutput = new byte[width];
-			for(int i= 0; i < width; i++)
-				rowOutput[i] = (byte) row[i];
-
-			System.arraycopy(rowOutput, 0, result, y*width, width);
-		};
-
-		calculate(reader, writer, width, height, 256);
-
-		byte[][] resultArray = new byte[][] {result};
-
-		if(calculated!=null)
-			calculated.put(this, resultArray);
-
-		return resultArray;
 	}
 
-	abstract protected Calculator getCalculator(final PixelReader reader, final int numBins);
+	@NotNull
+	private static PixelWriter shortPixelWriter(int width, short[][] result) {
+		return (y, row) -> {
+			for(int v = 0; v < result.length; v ++) {
+				final short[] rowOutput = new short[width];
+				for(int i = 0; i < rowOutput.length; i++)
+					rowOutput[i] = (short) row[v][i];
 
-	protected void calculate(final PixelReader reader, final PixelWriter writer, final int width, final int height, int nBins) {
-		final Calculator calculator = getCalculator(reader, nBins);
-
-		final Mask mask = Mask.get(radius);
-		final int maskOffset = -radius;
-
-		ExecutorService threadPool = ImageSurfEnvironment.getFeatureExecutor();
-
-		try {
-			threadPool.submit(() ->
-					IntStream.range(0, height)
-							.parallel()
-							.forEach(y -> {
-						PixelWindow pixelWindow = PixelWindow.get(reader, width, height, mask, maskOffset, y);
-						final double[] rowOutput = new double[width];
-
-						for (int x = 0; x < width; x++) {
-							rowOutput[x] = calculator.calculate(pixelWindow);
-							pixelWindow.moveWindow();
-						}
-
-						synchronized (writer) {
-							writer.writeRow(y, rowOutput);
-						}
-					})
-			).get();
-		} catch (InterruptedException | ExecutionException e) {
-			throw new RuntimeException(e);
-		}
+				System.arraycopy(rowOutput, 0, result[v], y*width, width);
+			}
+		};
 	}
 
-	@Override
-	public short[][] calculate(short[] pixels, int width, int height, Map<FeatureCalculator, short[][]> calculated)
-	{
-		final PixelReader reader =new PixelReader() {
-			@Override
-			public int get(int index) {
-				return pixels[index] & 0xffff;
-			}
+	@NotNull
+	private static PixelReader shortPixelReader(short[] pixels, int width, int height) {
+		return new PixelReader() {
+				@Override
+				public int get(int index) {
+					return pixels[index] & 0xffff;
+				}
 
-			@Override
-			public int numBits() {
-				return 16;
-			}
+				@Override
+				public int numBits() {
+					return 16;
+				}
 
-			@Override
-			public int numPixels() {
-				return width * height;
-			}
-		};
-
-		final short[] result = new short[width*height];
-
-		final PixelWriter writer = (y, row) -> {
-			final short[] rowOutput = new short[width];
-			for(int i = 0; i < row.length; i++)
-				rowOutput[i] = (short) row[i];
-
-			System.arraycopy(rowOutput, 0, result, y*width, width);
-		};
-
-		calculate(reader, writer, width, height, 65536);
-
-		short[][] resultArray = new short[][] {result};
-
-		if(calculated!=null)
-			calculated.put(this, resultArray);
-
-		return resultArray;	}
+				@Override
+				public int numPixels() {
+					return width * height;
+				}
+			};
+	}
 
 	@Override
 	public String[] getResultDescriptions()
@@ -205,7 +302,7 @@ abstract public class NeighbourhoodHistogramCalculator implements FeatureCalcula
 	}
 
 	@Override
-	public Enumeration<String> getAllTags()
+	public Enumeration<String> getTagNames()
 	{
 		return tags.keys();
 	}
