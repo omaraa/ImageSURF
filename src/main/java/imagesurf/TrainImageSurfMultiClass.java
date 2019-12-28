@@ -582,9 +582,6 @@ public class TrainImageSurfMultiClass implements Command {
                 })
                 .max(Long::compare);
 
-        System.out.println("imageSize: "+featureFilesSize.get());
-        System.out.println("numCalculators: "+featureCalculators.length);
-
         final long ramAvailable = Runtime.getRuntime().maxMemory();
         final long threads = Prefs.getThreads();
         final long estimatedRamRequired = (featureFilesSize.orElse(0l)/numChannels) * (featureCalculators.length+threads);

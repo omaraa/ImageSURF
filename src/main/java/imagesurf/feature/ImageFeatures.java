@@ -652,7 +652,7 @@ public class ImageFeatures implements Serializable, ProgressNotifier
 
 						if(verbose)
 							System.out.println("Calculated imagesurf.feature "+(featuresToCalculate.length -
-									numRemaining)+"/"+featuresToCalculate.length+" for " + title + ": " + featureCalculator.getDescriptionWithTags() + " in " + (System.currentTimeMillis() - start) + "ms. [" + numRemaining + " remaining]");
+									numRemaining)+"/"+featuresToCalculate.length+" for " + title + ": " + featureCalculator.getDescriptionWithTags() + " in " + (System.currentTimeMillis() - featureStart) + "ms. [" + numRemaining + " remaining]");
 
 						onProgress(featuresToCalculate.length - numRemaining, featuresToCalculate.length, "Calculated imagesurf.feature "+title);
 
