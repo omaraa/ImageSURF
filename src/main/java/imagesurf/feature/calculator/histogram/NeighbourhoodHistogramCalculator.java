@@ -19,12 +19,15 @@ package imagesurf.feature.calculator.histogram;
 
 import imagesurf.feature.calculator.FeatureCalculator;
 import imagesurf.util.ImageSurfEnvironment;
+import org.apache.commons.pool2.BasePooledObjectFactory;
+import org.apache.commons.pool2.PooledObject;
+import org.apache.commons.pool2.impl.DefaultPooledObject;
+import org.apache.commons.pool2.impl.GenericObjectPool;
+import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.Serializable;
-import java.util.Arrays;
-import java.util.Enumeration;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -59,7 +62,7 @@ abstract public class NeighbourhoodHistogramCalculator implements FeatureCalcula
 		int[] calculate(PixelWindow pixelWindow);
 	}
 
-	abstract protected Calculator getCalculator(final PixelReader reader, final int numBins);
+	abstract protected Calculator getCalculator(final PixelReader reader);
 
 	@Override
 	public FeatureCalculator[] getDependencies()
@@ -82,19 +85,18 @@ abstract public class NeighbourhoodHistogramCalculator implements FeatureCalcula
 				new NeighbourhoodHistogramCalculator[] { this },
 				new PixelWriter[] { writer },
 				width,
-				height,
-				nBins);
+				height
+		);
 	}
 
 	private static void calculateMultiple(final PixelReader reader,
 										  final NeighbourhoodHistogramCalculator[] features,
 										  final PixelWriter[] writers,
 										  final int width,
-										  final int height,
-										  final int nBins) {
+										  final int height) {
 
 		final Calculator[] calculators = Arrays.stream(features)
-				.map( f -> f.getCalculator(reader, nBins))
+				.map( f -> f.getCalculator(reader))
 				.toArray(Calculator[]::new);
 
 		final int nCalculators = calculators.length;
@@ -102,14 +104,25 @@ abstract public class NeighbourhoodHistogramCalculator implements FeatureCalcula
 		final Mask mask = Mask.get(radius);
 		final int maskOffset = -radius;
 
-		ExecutorService threadPool = ImageSurfEnvironment.getFeatureExecutor();
+		final ExecutorService threadPool = ImageSurfEnvironment.getFeatureExecutor();
+
+		final Histogram histogramPrototype = new Histogram(reader);
+		final HistogramPool histogramPool= new HistogramPool(ImageSurfEnvironment.getNumThreads(), histogramPrototype);
 
 		try {
 			threadPool.submit(() ->
 					IntStream.range(0, height)
 							.parallel()
 							.forEach(y -> {
-								PixelWindow pixelWindow = PixelWindow.get(reader, width, height, mask, maskOffset, y);
+
+								final Histogram histogram;
+								try {
+									histogram = histogramPool.borrowObject();
+								} catch (Exception e) {
+									throw new RuntimeException(e);
+								}
+
+								PixelWindow pixelWindow = PixelWindow.get(reader, width, height, mask, maskOffset, y, histogram);
 								final double[][][] rowOutput = Arrays.stream(features)
 										.map( (f) -> new double[f.getNumImagesReturned()][width])
 										.toArray(double[][][]::new);
@@ -128,10 +141,42 @@ abstract public class NeighbourhoodHistogramCalculator implements FeatureCalcula
 										writers[c].writeRow(y, rowOutput[c]);
 									}
 
+								histogramPool.returnObject(histogram);
 							})
 			).get();
 		} catch (InterruptedException | ExecutionException e) {
 			throw new RuntimeException(e);
+		};
+	}
+
+	private static class HistogramPool extends GenericObjectPool<Histogram> {
+
+		HistogramPool( int size, Histogram prototype) {
+			super(new BasePooledObjectFactory<Histogram>() {
+				@Override
+				public Histogram create() throws Exception {
+					return prototype.copy();
+				}
+
+				@Override
+				public PooledObject<Histogram> wrap(Histogram histogram) {
+					return new DefaultPooledObject<Histogram>(histogram);
+				}
+			}, config(size));
+
+			try {
+				addObjects(size);
+			} catch (Exception e) {
+				throw new RuntimeException(e);
+			}
+		}
+
+		static GenericObjectPoolConfig<Histogram> config(int size) {
+			final GenericObjectPoolConfig<Histogram> config = new GenericObjectPoolConfig<>();
+			config.setMaxIdle(size);
+			config.setMaxTotal(size);
+
+			return config;
 		}
 	}
 
@@ -154,7 +199,7 @@ abstract public class NeighbourhoodHistogramCalculator implements FeatureCalcula
 		final PixelWriter[] writers = Arrays.stream(results)
 				.map((r) -> bytePixelWriter(width, r)).toArray(PixelWriter[]::new);
 
-		calculateMultiple(reader, features, writers, width, height, 256);
+		calculateMultiple(reader, features, writers, width, height);
 
 		for(int i = 0; i < features.length; i++)
 			calculated.put(features[i], results[i]);
@@ -188,7 +233,7 @@ abstract public class NeighbourhoodHistogramCalculator implements FeatureCalcula
 		final PixelWriter[] writers = Arrays.stream(results)
 				.map((r) -> shortPixelWriter(width, r)).toArray(PixelWriter[]::new);
 
-		calculateMultiple(reader, features, writers, width, height, 65536);
+		calculateMultiple(reader, features, writers, width, height);
 
 		for(int i = 0; i < features.length; i++)
 			calculated.put(features[i], results[i]);

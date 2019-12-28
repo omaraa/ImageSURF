@@ -1,22 +1,48 @@
 package imagesurf.feature.calculator.histogram;
 
-import java.util.Comparator;
-import java.util.Iterator;
-import java.util.Objects;
-import java.util.SortedSet;
+import java.util.*;
 import java.util.concurrent.ConcurrentSkipListSet;
 
 public class Histogram {
     private final Bin[] bins;
+
+    private final Bin[] denseBins;
     private final SortedSet<Bin> sparseBins = new ConcurrentSkipListSet<>(Comparator.comparingInt(x -> x.value));
 
-    Histogram(int nBins) {
-        bins = new Bin[nBins];
-        for(int i = 0; i< nBins; i++)
-            bins[i] = new Bin(i);
+    private int numPixels = 0;
+
+    Histogram(PixelReader reader) {
+        final int[] values = reader.uniqueValues();
+
+        denseBins = new Bin[reader.numValues()];
+        bins = new Bin[values.length];
+
+        int j = 0;
+        for(int i : values) {
+            final Bin b = new Bin(i);
+            denseBins[i] = b;
+            bins[j++] = b;
+        }
     }
 
-    private int numPixels = 0;
+    public Histogram copy() {
+        return new Histogram(this);
+    }
+
+    private Histogram(Histogram histogram) {
+        denseBins = new Bin[histogram.denseBins.length];
+
+        bins = new Bin[histogram.bins.length];
+
+        for(int i = 0; i< bins.length; i++) {
+            Bin b = new Bin(histogram.bins[i]);
+            bins[i] = b;
+            denseBins[b.value] = b;
+
+            if(b.value > 0)
+                sparseBins.add(b);
+        }
+    }
 
     int getNumPixels() {
         return numPixels;
@@ -24,12 +50,12 @@ public class Histogram {
     int getNumUniquePixelValues() { return sparseBins.size(); }
 
     void increment(int value) {
-        bins[value].increment();
+        denseBins[value].increment();
         numPixels++;
     }
 
     void decrement(int value) {
-        bins[value].decrement();
+        denseBins[value].decrement();
         numPixels--;
     }
 
@@ -37,11 +63,17 @@ public class Histogram {
         return sparseBins.iterator();
     }
 
+    public void reset() {
+        for(Bin b : bins)
+            b.count = 0;
+
+        numPixels = 0;
+        sparseBins.clear();
+    }
+
     public class Bin {
         public final int value;
         private int count;
-
-        private final int hashCode;
 
         public int getCount() {
             return count;
@@ -69,7 +101,11 @@ public class Histogram {
 
         private Bin(int value) {
             this.value = value;
-            this.hashCode = Objects.hash(value);
+        }
+
+        private Bin(Bin bin) {
+            value = bin.value;
+            count = bin.count;
         }
 
         @Override
@@ -83,7 +119,7 @@ public class Histogram {
 
         @Override
         public int hashCode() {
-            return hashCode;
+            return value;
         }
     }
 }

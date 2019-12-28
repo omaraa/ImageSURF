@@ -75,12 +75,12 @@ public class MultipleFeatureCalculator extends NeighbourhoodHistogramCalculator 
 	}
 
 	@Override
-	protected Calculator getCalculator(final PixelReader reader, final int numBins) {
+	protected Calculator getCalculator(final PixelReader reader) {
 
 		return new Calculator() {
 
 			final Calculator[] calculators = Arrays.stream(features)
-					.map( f -> f.getCalculator(reader, numBins))
+					.map( f -> f.getCalculator(reader))
 					.toArray(Calculator[]::new);
 
 			@Override

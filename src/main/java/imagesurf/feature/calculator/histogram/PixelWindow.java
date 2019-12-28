@@ -1,6 +1,7 @@
 package imagesurf.feature.calculator.histogram;
 
 import imagesurf.feature.calculator.histogram.Mask.*;
+import org.jetbrains.annotations.NotNull;
 
 
 public class PixelWindow {
@@ -93,10 +94,16 @@ public class PixelWindow {
             final Mask mask,
             final int maskOffset,
             final int y) {
+        final Histogram sparseHistogram = new Histogram(reader);
+
+        return get(reader, width, height, mask, maskOffset, y, sparseHistogram);
+    }
+
+    @NotNull
+    static PixelWindow get(PixelReader reader, int width, int height, Mask mask, int maskOffset, int y, Histogram histogram) {
         final MaskRow[] maskRows = mask.rows;
 
-        final Histogram sparseHistogram = new Histogram(1 << reader.numBits());
-
+        histogram.reset();
 
         for (int i = 0; i < maskRows.length; i++) {
             final int currentY = y + i + maskOffset;
@@ -107,12 +114,12 @@ public class PixelWindow {
                 final int x = j + maskOffset + maskRows[i].offset;
                 if (x < width && x >= 0) {
                     final int value = reader.get(to1d(x, currentY, width));
-                    sparseHistogram.increment(value);
+                    histogram.increment(value);
                 }
             }
         }
 
-        return new PixelWindow(mask, maskOffset, sparseHistogram, reader, width, height, y);
+        return new PixelWindow(mask, maskOffset, histogram, reader, width, height, y);
     }
 }
 
