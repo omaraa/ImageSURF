@@ -34,7 +34,7 @@ public class Median extends NeighbourhoodHistogramCalculator implements Serializ
 	}
 
 	@Override
-	protected Calculator getCalculator(final PixelReader reader, final int numBins) {
+	protected Calculator getCalculator(final PixelReader reader) {
 
 		return pw -> {
 			final int totalPixels = pw.getNumPixels();

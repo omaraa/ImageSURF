@@ -36,9 +36,9 @@ public class Entropy extends NeighbourhoodHistogramCalculator implements Seriali
 	}
 
 	@Override
-	protected Calculator getCalculator(final PixelReader reader, final int numBins) {
+	protected Calculator getCalculator(final PixelReader reader) {
 
-		final double binsPerBit = (double) numBins / (double) reader.numBits();
+		final double binsPerBit = (double) reader.numValues() / (double) reader.numBits();
 
 		return pw -> {
 
