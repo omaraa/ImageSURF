@@ -85,7 +85,7 @@ public class ApplyImageSurf implements Command{
 		if (imageSurfClassifier.getNumChannels() != features.numChannels)
 			throw new Exception("Classifier trained for "+imageSurfClassifier.getNumChannels()+" channels. Image has "+features.numChannels+" - cannot segment.");
 
-		return Utility.INSTANCE.segmentImage(imageSurfClassifier, features, image, statusService);
+		return Utility.INSTANCE.segmentImageTiled(imageSurfClassifier, image, statusService);
 	}
 
 	@Override

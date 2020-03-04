@@ -39,7 +39,6 @@ class ApplyImageSurfTest {
         `classifies image accurately`(
                 labelImageFile = labelImageFile,
                 rawImageFile = rawImageFile,
-                expectedOutputFile = expectedOutputFile,
                 features = selectedFeaturesSingleChannel,
                 numChannels = 1,
                 expected = expected
@@ -60,7 +59,6 @@ class ApplyImageSurfTest {
                 labelImageFile = labelImageFile,
                 unlabelledImageFile = unlabelledImageFile,
                 rawImageFile = rawImageFile,
-                expectedOutputFile = expectedOutputFile,
                 features = selectedFeaturesMultiChannel,
                 numChannels = 2,
                 expected = expected
@@ -72,7 +70,6 @@ class ApplyImageSurfTest {
             unlabelledImageFile: File? = null,
             rawImageFile: File,
             featureFile: File? = null,
-            expectedOutputFile: File,
             features: Array<FeatureCalculator>,
             numChannels: Int,
             expected: ByteArray
