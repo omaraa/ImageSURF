@@ -1,8 +1,8 @@
 package imagesurf.feature.calculator.histogram;
 
-import java.util.Iterator;
+import it.unimi.dsi.util.XorShift1024StarPhiRandom;
+
 import java.util.NoSuchElementException;
-import java.util.Random;
 
 /**
  * A skip list is a data structure that allows fast search within
@@ -22,7 +22,7 @@ public class SkipList {
 
     static final int HEAD_VALUE = Integer.MIN_VALUE;
 
-    protected static final Random randomGenerator = new Random();
+    protected static final XorShift1024StarPhiRandom randomGenerator = new XorShift1024StarPhiRandom();
 
     protected static final double DEFAULT_PROBABILITY = 0.5;
 
@@ -146,7 +146,7 @@ public class SkipList {
     }
 
     protected boolean isBuildLevel() {
-        return randomGenerator.nextDouble() < probability;
+        return randomGenerator.nextDoubleFast() < probability;
     }
 
     protected void horizontalInsert(Node x, Node y) {

@@ -27,7 +27,7 @@ class RandomTree(val randomForest: RandomForest) : Serializable {
     /**
      * The subtrees appended to this tree.
      */
-    protected var children: Array<RandomTree?>? = null
+    protected var children: Array<RandomTree?> = arrayOfNulls(2)
 
     /**
      * The attribute to split on.
@@ -55,26 +55,25 @@ class RandomTree(val randomForest: RandomForest) : Serializable {
      */
     fun distributionForInstance(data: FeatureReader, instanceIndex: Int): DoubleArray? {
 
-        if (splitAttribute > -1) {
-            val splitDirection = if (data.getValue(instanceIndex, splitAttribute) < splitPoint)
+        var current: RandomTree = this
+
+        while (current.splitAttribute > -1) {
+            val splitDirection = if (data.getValue(instanceIndex, current.splitAttribute) < current.splitPoint)
                 SPLIT_LEFT
             else
                 SPLIT_RIGHT
 
-            val distribution = children!![splitDirection]!!.distributionForInstance(data, instanceIndex)
-
-            if (distribution != null)
-                return distribution
+            current = current.children[splitDirection]!!
         }
 
         // Node is a leaf or successor is empty
-        return normalisedClassDistribution
+        return current.normalisedClassDistribution
     }
 
     fun buildTree(data: FeatureReader, instanceIndices: IntArray, randomSeed: Long) {
         val rand = Random(randomSeed)
 
-        // Create the attribute indices window
+        // Create the attribute indices windowF
         val attIndicesWindow = (0 until data.numFeatures)
                 .shuffled()
                 .filter { it != data.classIndex }
@@ -227,7 +226,7 @@ class RandomTree(val randomForest: RandomForest) : Serializable {
         }
 
         for (splitDirection in SPLIT_DIRECTIONS)
-            subsets[splitDirection] = Arrays.copyOf(subsets[splitDirection], subsetCounts[splitDirection])
+            subsets[splitDirection] = subsets[splitDirection].copyOf(subsetCounts[splitDirection])
 
         return subsets
     }

@@ -210,8 +210,14 @@ object Training {
                         " differ in size")
             }
 
-            unlabelledImagePixels.indices
-                    .filter { labelImagePixels[it] != unlabelledImagePixels[it] }.toIntArray()
+            val indices = IntArray(unlabelledImagePixels.size)
+            var numLabels = 0
+            for(i in 0 until unlabelledImagePixels.size) {
+                if(labelImagePixels[i] != unlabelledImagePixels[i])
+                    indices[numLabels++] = i
+            }
+
+            indices.copyOf(numLabels)
         }
     }
 
