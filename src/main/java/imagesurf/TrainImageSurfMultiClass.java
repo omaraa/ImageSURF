@@ -402,7 +402,7 @@ public class TrainImageSurfMultiClass implements Command {
                     imageFeatures = ImageFeatures.deserialize(featureFiles[imageIndex].toPath());
                 }
 
-                ImageStack segmentation = Utility.INSTANCE.segmentImage(imageSurfClassifier, imageFeatures, image, statusService);
+                ImageStack segmentation = Utility.INSTANCE.segmentImage(imageSurfClassifier, imageFeatures, statusService);
 
                 segmentationStacks[imageIndex] = segmentation;
                 imageStacks[imageIndex] = image.getStack();
@@ -484,7 +484,7 @@ public class TrainImageSurfMultiClass implements Command {
                     imageFeatures = ImageFeatures.deserialize(featureFiles[imageIndex].toPath());
                 }
 
-                ImageStack segmentation = Utility.INSTANCE.segmentImage(imageSurfClassifier, imageFeatures, image, statusService);
+                ImageStack segmentation = Utility.INSTANCE.segmentImage(imageSurfClassifier, imageFeatures, statusService);
                 ImagePlus segmentationImage = new ImagePlus("segmentation", segmentation);
 
                 if (segmentation.size() > 1)

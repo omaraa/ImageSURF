@@ -785,4 +785,26 @@ public class ImageFeatures implements Serializable, ProgressNotifier
 
 		return times.stream().count()/times.size();
 	}
+
+	public interface FeatureCalculation {
+		FeatureReader calculate() throws ExecutionException, InterruptedException;
+	}
+
+	public List<FeatureCalculation> getCalculations(FeatureCalculator[] features) {
+		List<FeatureCalculation> calculations = new ArrayList();
+
+		for(int t = 0; t < numFrames; t++)
+			for(int z = 0; z < numFrames; z++) {
+				final int finalZ = z;
+				final int finalT = t;
+				calculations.add(() -> {
+					int[] classes = new int[pixelsPerChannel];
+					Arrays.fill(classes, -1);
+
+					return getReader(finalZ, finalT, features, classes);
+				});
+			}
+
+		return calculations;
+	}
 }
