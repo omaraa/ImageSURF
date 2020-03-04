@@ -1,7 +1,6 @@
 package imagesurf.util
 
 import imagesurf.classifier.ImageSurfClassifier
-import imagesurf.classifier.RandomForest
 import imagesurf.feature.ImageFeatures
 import ij.ImagePlus
 import ij.ImageStack
@@ -10,9 +9,9 @@ import imagesurf.feature.PixelType
 import imagesurf.feature.calculator.FeatureCalculator
 import org.scijava.app.StatusService
 
-import javax.imageio.ImageIO
-import java.awt.*
 import java.io.*
+import java.lang.Integer.max
+import java.lang.Integer.min
 import java.util.Random
 import java.util.concurrent.ExecutionException
 import java.util.zip.GZIPInputStream
@@ -28,11 +27,11 @@ object Utility {
     /**
      * The natural logarithm of 2.
      */
-    var log2 = Math.log(2.0)
+    val log2 = Math.log(2.0)
     /**
      * The small deviation allowed in double comparisons.
      */
-    var SMALL = 1e-6
+    val SMALL = 1e-6
 
     init {
         var i = 1
@@ -118,33 +117,6 @@ object Utility {
         }
     }
 
-    @Throws(IOException::class)
-    fun getImageDimensions(imagePath: File): Dimension {
-
-        try {
-            ImageIO.createImageInputStream(imagePath).use { input ->
-                val reader = ImageIO.getImageReaders(input).next() // TODO: Handle no reader
-                try {
-                    reader.input = input
-                    return Dimension(reader.getWidth(0), reader.getHeight(0))
-                } finally {
-                    reader.dispose()
-                }
-            }
-        } catch (e: Exception) {
-            throw IOException("Failed to read dimensions", e)
-        }
-
-    }
-
-    fun sum(labelledPixels: IntArray): Int {
-        var sum = 0
-        for (i in labelledPixels)
-            sum += i
-
-        return sum
-    }
-
     fun shuffleArray(ar: IntArray, random: Random) {
         for (i in ar.size - 1 downTo 1) {
             val index = random.nextInt(i + 1)
@@ -156,9 +128,104 @@ object Utility {
         }
     }
 
-    //todo: remove ImagePlus image parameter and use features members (e.g.,  width, height) instead.
+    data class Tile(
+            val row: Int,
+            val col: Int,
+            val image: ImagePlus,
+            val roiX: Int,
+            val roiY: Int,
+            val roiTargetWidth: Int,
+            val roiTargetHeight: Int,
+            val buffer: Int
+    ) {
+        val bufferedXStart = max(roiX - buffer, 0)
+        val bufferedYStart = max(roiY - buffer, 0)
+        val bufferedXEnd = min(roiX + roiTargetWidth + buffer, image.width-1)
+        val bufferedYEnd = min(roiY + roiTargetHeight + buffer, image.height-1)
+
+        val bufferedWidth = bufferedXEnd - bufferedXStart
+        val bufferedHeight = bufferedYEnd - bufferedYStart
+
+        val roiXEnd = min(roiX + roiTargetWidth, image.width - 1)
+        val roiYEnd = min(roiY + roiTargetHeight, image.height - 1)
+
+
+        val roiWidth = roiXEnd - roiX
+        val roiHeight = roiYEnd - roiY
+
+
+        override fun toString(): String =
+                "($bufferedXStart to $bufferedXEnd) Tile $bufferedXStart,$bufferedYStart $bufferedWidth x $bufferedHeight"
+    }
+
     @Throws(ExecutionException::class, InterruptedException::class)
-    fun segmentImage(imageSurfClassifier: ImageSurfClassifier, features: ImageFeatures, image: ImagePlus, statusService: StatusService): ImageStack {
+    fun segmentImageTiled(imageSurfClassifier: ImageSurfClassifier, image: ImagePlus, statusService: StatusService): ImageStack {
+
+        val buffer = imageSurfClassifier.features.map { it.radius }.max()!!
+        val roiSize = 350 - (buffer * 2)
+
+        val nCols = (image.width / roiSize) + 1
+        val nRows = (image.height / roiSize) + 1
+
+        val tiles: List<Tile> =
+                (0 until nRows).flatMap { row ->
+                    (0 until nCols).map { col ->
+                        Tile(
+                                row = row,
+                                col = col,
+                                image = image,
+                                roiX = col * roiSize,
+                                roiY = row * roiSize,
+                                roiTargetWidth = roiSize,
+                                roiTargetHeight = roiSize,
+                                buffer = buffer
+                        )
+                    }
+                }
+
+        val segmentedStack: List<ByteArray> = (0 until image.stackSize).map { ByteArray(image.width * image.height) }
+
+        tiles.mapIndexed { index, tile ->
+            val tiledStatus = object : StatusService by statusService {
+                override fun showStatus(p0: Int, p1: Int, p2: String?) = statusService.showStatus(p0, p1, "$p2 tile ${index + 1}/${tiles.size}")
+            }
+
+            image.setRoi(
+                    tile.bufferedXStart,
+                    tile.bufferedYStart,
+                    tile.bufferedWidth,
+                    tile.bufferedHeight
+            )
+            val croppedImage = image.duplicate()
+            val croppedFeatures = ImageFeatures(croppedImage)
+            val segmentedCroppedStack = segmentImage(imageSurfClassifier, croppedFeatures, tiledStatus)
+
+            tile to segmentedCroppedStack
+        }.forEach { (tile, segmented) ->
+            segmented.toPixels().forEachIndexed { index, pixels ->
+                (tile.roiY until tile.roiYEnd).toList().forEachIndexed { tileRowIndex, destinationRowIndex ->
+                    val sourceIndex = tile.bufferedWidth * tileRowIndex
+                    val destinationIndex = destinationRowIndex * image.width + (tile.col * tile.roiTargetWidth)
+                    System.arraycopy(
+                            pixels,
+                            sourceIndex,
+                            segmentedStack[index],
+                            destinationIndex,
+                            tile.roiWidth
+                    )
+                }
+            }
+        }
+
+        return segmentedStack.fold(ImageStack(image.width, image.height)) { stack, bytes -> stack.apply { addSlice("", bytes) } }
+    }
+
+    private fun ImageStack.toPixels() = (0 until this.size).map { index ->
+        this.getPixels(index + 1)
+    }
+
+    @Throws(ExecutionException::class, InterruptedException::class)
+    fun segmentImage(imageSurfClassifier: ImageSurfClassifier, features: ImageFeatures, statusService: StatusService): ImageStack {
         if (imageSurfClassifier.pixelType != features.pixelType)
             throw RuntimeException("Classifier pixel type (" +
                     imageSurfClassifier.pixelType + ") does not match image pixel type (" + features.pixelType + ")")
@@ -166,64 +233,27 @@ object Utility {
         if (imageSurfClassifier.numChannels != features.numChannels)
             throw RuntimeException("Classifier trained for " + imageSurfClassifier.numChannels + " channels. Image has " + features.numChannels + " - cannot segment.")
 
+        val randomForest = imageSurfClassifier.randomForest.apply { numThreads = Prefs.getThreads() }
+        val classColors = getClassColors(randomForest.numClasses)
 
-        val randomForest = imageSurfClassifier.randomForest
-        randomForest.numThreads = Prefs.getThreads()
+        val featuresProgress = MessageProgress(statusService)
+        features.addProgressListener(featuresProgress)
 
+        val segmentProgress = MessageProgress(statusService)
+        randomForest.addProgressListener(segmentProgress)
 
-        val outputStack = ImageStack(image.width, image.height)
-        val numPixels = image.width * image.height
+        return features.getCalculations(imageSurfClassifier.features)
+                .mapIndexed { currentSlice, calculation ->
 
-        val numClasses = randomForest.numClasses
-        val classColors = ByteArray(numClasses)
-        run {
-            classColors[0] = 0
-            classColors[classColors.size - 1] = 0xff.toByte()
+                    featuresProgress.message = "Calculating features for plane " +
+                            "$currentSlice/${features.numChannels * features.numSlices * features.numFrames}"
+                    segmentProgress.message = "Segmenting plane " +
+                            "$currentSlice/${features.numChannels * features.numSlices * features.numFrames}"
 
-            if (numClasses > 2) {
-                val interval = 0xff / (numClasses - 1)
-                for (i in 1 until classColors.size - 1)
-                    classColors[i] = (interval * i).toByte()
-            }
-        }
-
-
-        val currentSlice = 1
-        for (z in 0 until image.nSlices)
-            for (t in 0 until image.nFrames) {
-
-                val imageFeaturesProgressListener = object : ProgressListener {
-                    override fun onProgress(current: Int, max: Int, message: String) {
-                        statusService.showStatus(current, max,
-                                "Calculating features for plane $currentSlice/${image.nChannels * image.nSlices * image.nFrames}")
-                    }
-                }
-
-                features.addProgressListener(imageFeaturesProgressListener)
-                if (features.calculateFeatures(z, t, imageSurfClassifier.features))
-                    features.removeProgressListener(imageFeaturesProgressListener)
-
-                val featureReader = features.getReader(z, t, imageSurfClassifier.features)
-
-                val randomForestProgressListener = object : ProgressListener {
-                    override fun onProgress(current: Int, max: Int, message: String) {
-                        statusService.showStatus(current, max, "Segmenting plane " + currentSlice + "/" +
-                                image.nChannels * image.nSlices * image.nFrames)
-                    }
-                }
-
-                randomForest.addProgressListener(randomForestProgressListener)
-                val classes = randomForest.classForInstances(featureReader)
-                randomForest.removeProgressListener(randomForestProgressListener)
-                val segmentationPixels = ByteArray(numPixels)
-
-                for (i in 0 until numPixels) {
-                    segmentationPixels[i] = classColors[classes[i]]
-                }
-
-                outputStack.addSlice("", segmentationPixels)
-            }
-        return outputStack
+                    calculation.calculate()
+                            .let { randomForest.classForInstances(it) }
+                            .map(classColors::get).toByteArray()
+                }.fold(ImageStack(features.width, features.height)) { stack, bytes -> stack.apply { addSlice("", bytes) } }
     }
 
     @Throws(ExecutionException::class, InterruptedException::class)
@@ -451,16 +481,11 @@ object Utility {
         return a - b > SMALL
     }
 
-    fun getPixelType(imagePlus: ImagePlus): PixelType {
-        when (imagePlus.type) {
-            ImagePlus.COLOR_256, ImagePlus.COLOR_RGB, ImagePlus.GRAY8 -> return PixelType.GRAY_8_BIT
-
-            ImagePlus.GRAY16 -> return PixelType.GRAY_16_BIT
-
-            ImagePlus.GRAY32 -> throw IllegalArgumentException("32-bit grayscale images are not yet supported.")
-
-            else -> throw IllegalArgumentException("Image type not supported.")
-        }
+    fun getPixelType(imagePlus: ImagePlus): PixelType = when (imagePlus.type) {
+        ImagePlus.COLOR_256, ImagePlus.COLOR_RGB, ImagePlus.GRAY8 -> PixelType.GRAY_8_BIT
+        ImagePlus.GRAY16 -> PixelType.GRAY_16_BIT
+        ImagePlus.GRAY32 -> throw IllegalArgumentException("32-bit grayscale images are not yet supported.")
+        else -> throw IllegalArgumentException("Image type not supported.")
     }
 
     fun describeClassifier(classifier: ImageSurfClassifier?): String {
@@ -502,5 +527,26 @@ object Utility {
 
     fun calculateNumMergedChannels(numChannels: Int): Int {
         return (1 shl numChannels) - 1
+    }
+
+    fun getClassColors(numClasses: Int): ByteArray {
+        val classColors = ByteArray(numClasses)
+        classColors[0] = 0
+        classColors[classColors.size - 1] = 0xff.toByte()
+
+        if (numClasses > 2) {
+            val interval = 0xff / (numClasses - 1)
+            for (i in 1 until classColors.size - 1)
+                classColors[i] = (interval * i).toByte()
+        }
+
+        return classColors
+    }
+
+    class MessageProgress(private val statusService: StatusService) : ProgressListener {
+        var message = ""
+
+        override fun onProgress(current: Int, max: Int, message: String) =
+                statusService.showStatus(current, max, message)
     }
 }
