@@ -588,6 +588,7 @@ public class ImageFeatures implements Serializable, ProgressNotifier
 		if(featuresToCalculate.length == 0)
 			return false;
 
+		final List<FeatureCalculator> allFeatures = Arrays.stream(features).collect(Collectors.toList());
 		final List<FeatureCalculator> remainingFeatureCalculators = new Vector<FeatureCalculator>(Arrays.asList(featuresToCalculate));
 		while (!remainingFeatureCalculators.isEmpty())
 		{
@@ -600,7 +601,7 @@ public class ImageFeatures implements Serializable, ProgressNotifier
 				} else {
 					boolean dependenciesProcessing = false;
 					for (FeatureCalculator dependency : featureCalculator.getDependenciesWithTags()) {
-						if (toProcess.contains(dependency)) {
+						if (allFeatures.contains(dependency) && remainingFeatureCalculators.contains(dependency)) {
 							dependenciesProcessing = true;
 							break;
 						}
@@ -648,7 +649,6 @@ public class ImageFeatures implements Serializable, ProgressNotifier
 						recordComputationTime(featureCalculator, computationTime, pixelsPerChannel*numChannels);
 
 						int numRemaining = numProcessing - numProcessed.incrementAndGet() + numToSchedule;
-
 
 						if(verbose)
 							System.out.println("Calculated imagesurf.feature "+(featuresToCalculate.length -
