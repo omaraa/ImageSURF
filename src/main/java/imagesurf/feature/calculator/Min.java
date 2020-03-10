@@ -17,15 +17,18 @@
 
 package imagesurf.feature.calculator;
 
+import imagesurf.feature.calculator.histogram.NeighbourhoodHistogramCalculator;
+import imagesurf.feature.calculator.histogram.PixelReader;
+
 import java.io.Serializable;
 
-public class Min extends Rank implements Serializable
+public class Min extends NeighbourhoodHistogramCalculator implements Serializable
 {
 	static final long serialVersionUID = 42L;
 
-	public Min(double radius)
+	public Min(int radius)
 	{
-		super(radius, RankFilter.Type.MIN);
+		super(radius);
 	}
 
 	@Override
@@ -38,5 +41,10 @@ public class Min extends Rank implements Serializable
 	public String getName()
 	{
 		return "Min";
+	}
+
+	@Override
+	protected Calculator getCalculator(PixelReader reader) {
+		return pw -> new int[] { pw.getHistogramIterator().next().value };
 	}
 }

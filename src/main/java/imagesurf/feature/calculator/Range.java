@@ -17,106 +17,24 @@
 
 package imagesurf.feature.calculator;
 
-import java.io.Serializable;
-import java.util.Enumeration;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import imagesurf.feature.calculator.histogram.NeighbourhoodHistogramCalculator;
+import imagesurf.feature.calculator.histogram.PixelReader;
 
-public class Range implements FeatureCalculator, Serializable
+import java.io.Serializable;
+
+public class Range extends NeighbourhoodHistogramCalculator implements Serializable
 {
 	static final long serialVersionUID = 42L;
 
-	public static final int DEFAULT_RADIUS = 5;
-	private int radius;
-
-	private Min minCalculator;
-	private Max maxCalculator;
-
 	public Range(int radius)
 	{
-		setRadius(radius);
-	}
-
-	public Range()
-	{
-		setRadius(DEFAULT_RADIUS);
-	}
-
-	public int getRadius()
-	{
-		return radius;
-	}
-
-	public void setRadius(int radius)
-	{
-		this.radius = radius;
-
-		minCalculator = new Min(radius);
-		maxCalculator = new Max(radius);
+		super(radius);
 	}
 
 	@Override
-	public FeatureCalculator[] getDependencies()
+	public FeatureCalculator duplicate()
 	{
-		return new FeatureCalculator[] {new Min(radius), new Max(radius)};
-	}
-
-	@Override
-	public byte[][] calculate(byte[] pixels, int width, int height, Map<FeatureCalculator, byte[][]> calculated)
-	{
-		if(calculated!=null && calculated.containsKey(this))
-			return calculated.get(this);
-
-		byte[] min = (calculated.containsKey(minCalculator) ? calculated.get(minCalculator) : minCalculator.calculate(pixels, width, height))[0];
-		byte[] max = (calculated.containsKey(maxCalculator) ? calculated.get(maxCalculator) : maxCalculator.calculate(pixels, width, height))[0];
-
-		byte[] result = new byte[pixels.length];
-		for(int i=0;i<pixels.length;i++)
-		{
-			result[i] = (byte) ((0xff & max[i]) - (0xff & min[i]));
-		}
-
-		byte[][] resultArray = new byte[][] {result};
-
-		if(calculated!=null)
-			calculated.put(this, resultArray);
-
-		return resultArray;
-	}
-
-	@Override
-	public short[][] calculate(short[] pixels, int width, int height, Map<FeatureCalculator, short[][]> calculated)
-	{
-		if(calculated!=null && calculated.containsKey(this))
-			return calculated.get(this);
-
-		short[] min = (calculated.containsKey(minCalculator) ? calculated.get(minCalculator) : minCalculator.calculate(pixels, width, height))[0];
-		short[] max = (calculated.containsKey(maxCalculator) ? calculated.get(maxCalculator) : maxCalculator.calculate(pixels, width, height))[0];
-
-		short[] result = new short[pixels.length];
-		for(int i=0;i<pixels.length;i++)
-		{
-			result[i] = (short) ((0xffff & max[i]) - (0xffff & min[i]));
-		}
-
-		short[][] resultArray = new short[][] {result};
-
-		if(calculated!=null)
-			calculated.put(this, resultArray);
-
-		return resultArray;
-	}
-
-	@Override
-	public String[] getResultDescriptions()
-	{
-		return new String[] {getDescription()};
-	}
-
-	@Override
-	public int getNumImagesReturned()
-	{
-		return 1;
+		return new Range(getRadius());
 	}
 
 	@Override
@@ -126,69 +44,12 @@ public class Range implements FeatureCalculator, Serializable
 	}
 
 	@Override
-	public String getDescription()
-	{
-		return getName() + " ("+getRadius() + ')';
-	}
+	protected Calculator getCalculator(PixelReader reader) {
+		return pw -> {
+			final int min = pw.getHistogramIterator().next().value;
+			final int max = pw.getHistogramIteratorDescending().next().value;
 
-	@Override
-	public FeatureCalculator duplicate()
-	{
-		return new Range(radius);
-	}
-
-	private final ConcurrentHashMap<String, Object> tags = new ConcurrentHashMap<>();
-
-	@Override
-	public Object getTag(String tagName)
-	{
-		return tags.get(tagName);
-	}
-
-	@Override
-	public void setTag(String tagName, Object tagValue)
-	{
-		tags.put(tagName, tagValue);
-	}
-
-	@Override
-	public Enumeration<String> getTagNames()
-	{
-		return tags.keys();
-	}
-
-	@Override
-	public void removeTag(String tagName)
-	{
-		tags.remove(tagName);
-	}
-
-	@Override
-	public boolean equals(Object o)
-	{
-		if (this == o)
-			return true;
-		if (!(o instanceof Range))
-			return false;
-
-		Range range = (Range) o;
-
-		if (radius != range.radius)
-			return false;
-		if (!minCalculator.equals(range.minCalculator))
-			return false;
-		if (!maxCalculator.equals(range.maxCalculator))
-			return false;
-		return tags.equals(range.tags);
-	}
-
-	@Override
-	public int hashCode()
-	{
-		int result = radius;
-		result = 31 * result + minCalculator.hashCode();
-		result = 31 * result + maxCalculator.hashCode();
-		result = 31 * result + tags.hashCode();
-		return result;
+			return new int[] {max - min};
+		};
 	}
 }

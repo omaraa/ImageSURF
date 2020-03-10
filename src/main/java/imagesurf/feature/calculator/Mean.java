@@ -17,15 +17,20 @@
 
 package imagesurf.feature.calculator;
 
-import java.io.Serializable;
+import imagesurf.feature.calculator.histogram.Histogram;
+import imagesurf.feature.calculator.histogram.NeighbourhoodHistogramCalculator;
+import imagesurf.feature.calculator.histogram.PixelReader;
 
-public class Mean extends Rank implements Serializable
+import java.io.Serializable;
+import java.util.Iterator;
+
+public class Mean extends NeighbourhoodHistogramCalculator implements Serializable
 {
 	static final long serialVersionUID = 42L;
 
-	public Mean(double radius)
+	public Mean(int radius)
 	{
-		super(radius, RankFilter.Type.MEAN);
+		super(radius);
 	}
 
 	@Override
@@ -38,5 +43,24 @@ public class Mean extends Rank implements Serializable
 	public String getName()
 	{
 		return "Mean";
+	}
+
+	@Override
+	protected Calculator getCalculator(PixelReader reader) {
+		return pw -> {
+			final int numPixels = pw.getNumPixels();
+			int sum = 0;
+
+			final int numEntries = pw.getNumUniqueValues();
+			final Iterator<Histogram.Bin> it = pw.getHistogramIterator();
+
+			for(int i = 0; i < numEntries; i++)
+			{
+				final Histogram.Bin b = it.next();
+				sum += b.getCount() * b.value;
+			}
+
+			return new int[] {sum/numPixels};
+		};
 	}
 }

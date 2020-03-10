@@ -166,7 +166,14 @@ public class FeatureCalculatorTest {
     public void testCalculateMulti() throws Exception {
         for (int i : radii) {
             FeatureCalculator featureCalculator = new MultipleFeatureCalculator(
-                    new NeighbourhoodHistogramCalculator[] {new Entropy(i), new Median(i)});
+                    new NeighbourhoodHistogramCalculator[]{
+                            new Entropy(i),
+                            new Median(i),
+                            new Mean(i),
+                            new Min(i),
+                            new Max(i),
+                            new Range(i)
+                    });
             testFeatureCalculator(featureCalculator);
         }
     }

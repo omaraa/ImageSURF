@@ -17,15 +17,18 @@
 
 package imagesurf.feature.calculator;
 
+import imagesurf.feature.calculator.histogram.NeighbourhoodHistogramCalculator;
+import imagesurf.feature.calculator.histogram.PixelReader;
+
 import java.io.Serializable;
 
-public class Max extends Rank implements Serializable
+public class Max extends NeighbourhoodHistogramCalculator implements Serializable
 {
 	static final long serialVersionUID = 42L;
 
-	public Max(double radius)
+	public Max(int radius)
 	{
-		super(radius, RankFilter.Type.MAX);
+		super(radius);
 	}
 
 	@Override
@@ -38,5 +41,10 @@ public class Max extends Rank implements Serializable
 	public String getName()
 	{
 		return "Max";
+	}
+
+	@Override
+	protected Calculator getCalculator(PixelReader reader) {
+		return pw -> new int[] { pw.getHistogramIteratorDescending().next().value };
 	}
 }

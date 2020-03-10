@@ -104,7 +104,26 @@ public class Histogram {
         included.clear();
     }
 
-    public class Bin {
+    Iterator<Bin> iteratorDescending() {
+        final int[] values = included.ascending();
+
+        return new Iterator<Bin>() {
+            int previousIndex = values.length;
+
+            @Override
+            public boolean hasNext() {
+                return previousIndex -1 >= 0;
+            }
+
+            @Override
+            public Bin next() {
+                previousIndex--;
+                return denseBins[values[previousIndex]];
+            }
+        };    }
+
+
+    public static class Bin {
         public final int value;
         private int count;
 

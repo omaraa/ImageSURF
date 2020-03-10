@@ -30,6 +30,11 @@ public class PixelWindow {
         return histogram.iterator();
     }
 
+    public java.util.Iterator<Histogram.Bin> getHistogramIteratorDescending()
+    {
+        return histogram.iteratorDescending();
+    }
+
     private PixelWindow(
             final Mask mask,
             final int maskOffset,
