@@ -278,6 +278,11 @@ abstract public class NeighbourhoodHistogramCalculator implements FeatureCalcula
 			public int numPixels() {
 				return width * height;
 			}
+
+			@Override
+			public int maxValue() {
+				return 255;
+			}
 		};
 	}
 
@@ -311,7 +316,12 @@ abstract public class NeighbourhoodHistogramCalculator implements FeatureCalcula
 				public int numPixels() {
 					return width * height;
 				}
-			};
+
+			@Override
+			public int maxValue() {
+				return 65535;
+			}
+		};
 	}
 
 	@Override
@@ -356,5 +366,23 @@ abstract public class NeighbourhoodHistogramCalculator implements FeatureCalcula
 	public void removeTag(String tagName)
 	{
 		tags.remove(tagName);
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) return true;
+
+		if(!this.getClass().equals(o.getClass()))
+			return false;
+
+		if (!(o instanceof NeighbourhoodHistogramCalculator)) return false;
+		NeighbourhoodHistogramCalculator that = (NeighbourhoodHistogramCalculator) o;
+		return getRadius() == that.getRadius() &&
+				getTags().equals(that.getTags());
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(getClass(),getRadius(), getTags());
 	}
 }

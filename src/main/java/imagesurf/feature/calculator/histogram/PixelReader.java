@@ -6,6 +6,7 @@ public interface PixelReader {
     int get(int index);
     int numPixels();
     int numBits();
+    int maxValue();
 
     default int numValues() {
         return 1 << numBits();

@@ -17,154 +17,26 @@
 
 package imagesurf.feature.calculator;
 
-import ij.plugin.filter.RankFilters;
-import ij.process.FloatProcessor;
+import imagesurf.feature.calculator.histogram.Histogram;
+import imagesurf.feature.calculator.histogram.NeighbourhoodHistogramCalculator;
+import imagesurf.feature.calculator.histogram.PixelReader;
 
 import java.io.Serializable;
-import java.util.Arrays;
-import java.util.Enumeration;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.Iterator;
 
-public class StandardDeviation implements FeatureCalculator, Serializable
+public class StandardDeviation extends NeighbourhoodHistogramCalculator implements Serializable
 {
 	static final long serialVersionUID = 42L;
 
-	public static final int DEFAULT_RADIUS = 5;
-	private int radius;
-
 	public StandardDeviation(int radius)
 	{
-		setRadius(radius);
-	}
-
-	public StandardDeviation()
-	{
-		setRadius(DEFAULT_RADIUS);
-	}
-
-	public int getRadius()
-	{
-		return radius;
-	}
-
-	public void setRadius(int radius)
-	{
-		this.radius = radius;
+		super(radius);
 	}
 
 	@Override
-	public FeatureCalculator[] getDependencies()
+	public FeatureCalculator duplicate()
 	{
-		return new FeatureCalculator[0];
-	}
-
-	@Override
-	public byte[][] calculate(byte[] pixels, int width, int height, Map<FeatureCalculator, byte[][]> calculated)
-	{
-		if(calculated!=null && calculated.containsKey(this))
-			return calculated.get(this);
-
-		pixels = Arrays.copyOf(pixels, pixels.length);
-
-		//AS DESCRIBED HERE - http://stackoverflow.com/questions/11456565/opencv-mean-sd-filter
-		float[] floatPixels = new float[pixels.length];
-		for(int i=0;i<pixels.length;i++)
-			floatPixels[i] = pixels[i] & 0xff;
-
-		final float[] squaredMean;
-		{
-			float[] squared = new float[pixels.length];
-			for(int i=0;i<pixels.length;i++)
-				squared[i] = floatPixels[i]*floatPixels[i];
-
-			FloatProcessor squaredMeanProcessor = new FloatProcessor(width, height, squared);
-			new RankFilters().rank(squaredMeanProcessor, radius, RankFilters.MEAN);
-
-			squaredMean = (float[]) squaredMeanProcessor.getPixels();
-		}
-
-		final float[] mean;
-		{
-			FloatProcessor meanProcessor = new FloatProcessor(width, height, floatPixels);
-			new RankFilters().rank(meanProcessor, radius, RankFilters.MEAN);
-
-			mean = (float[]) meanProcessor.getPixels();
-		}
-
-		byte[] result = new byte[pixels.length];
-		for(int i=0;i<pixels.length;i++)
-		{
-			double stdDev = Math.sqrt((squaredMean[i]) - (mean[i] * mean[i]));
-			result[i] = (byte) Math.min(Math.round((float) stdDev*2), 0xff);
-		}
-
-		byte[][] resultArray = new byte[][] {result};
-
-		if(calculated!=null)
-			calculated.put(this, resultArray);
-
-		return resultArray;
-	}
-
-	@Override
-	public short[][] calculate(short[] pixels, int width, int height, Map<FeatureCalculator, short[][]> calculated)
-	{
-		if(calculated!=null && calculated.containsKey(this))
-			return calculated.get(this);
-
-		pixels = Arrays.copyOf(pixels, pixels.length);
-
-		//AS DESCRIBED HERE - http://stackoverflow.com/questions/11456565/opencv-mean-sd-filter
-		float[] floatPixels = new float[pixels.length];
-		for(int i=0;i<pixels.length;i++)
-			floatPixels[i] = pixels[i] & 0xffff;
-
-		final float[] squaredMean;
-		{
-			float[] squared = new float[pixels.length];
-			for(int i=0;i<pixels.length;i++)
-				squared[i] = floatPixels[i]*floatPixels[i];
-
-			FloatProcessor squaredMeanProcessor = new FloatProcessor(width, height, squared);
-			new RankFilters().rank(squaredMeanProcessor, radius, RankFilters.MEAN);
-
-			squaredMean = (float[]) squaredMeanProcessor.getPixels();
-		}
-
-		final float[] mean;
-		{
-			FloatProcessor meanProcessor = new FloatProcessor(width, height, floatPixels);
-			new RankFilters().rank(meanProcessor, radius, RankFilters.MEAN);
-
-			mean = (float[]) meanProcessor.getPixels();
-		}
-
-		short[] result = new short[pixels.length];
-		for(int i=0;i<pixels.length;i++)
-		{
-			double stdDev = Math.sqrt((squaredMean[i]) - (mean[i] * mean[i]));
-			result[i] = (short) Math.min(Math.round(stdDev*2), 0xffff);
-		}
-
-		short[][] resultArray = new short[][] {result};
-
-		if(calculated!=null)
-			calculated.put(this, resultArray);
-
-		return resultArray;
-	}
-
-	@Override
-	public String[] getResultDescriptions()
-	{
-		return new String[] {getDescription()};
-	}
-
-	@Override
-	public int getNumImagesReturned()
-	{
-		return 1;
+		return new StandardDeviation(getRadius());
 	}
 
 	@Override
@@ -174,63 +46,34 @@ public class StandardDeviation implements FeatureCalculator, Serializable
 	}
 
 	@Override
-	public String getDescription()
-	{
-		return getName() + " ("+getRadius() + ')';
-	}
+	protected Calculator getCalculator(PixelReader reader) {
+		final int maxValue = reader.maxValue();
 
-	@Override
-	public FeatureCalculator duplicate()
-	{
-		return new StandardDeviation(radius);
-	}
+		return pw -> {
+			final int numPixels = pw.getNumPixels();
+			double sum = 0;
+			double sumSquared = 0;
 
-	private final ConcurrentHashMap<String, Object> tags = new ConcurrentHashMap<>();
+			final int numEntries = pw.getNumUniqueValues();
+			final Iterator<Histogram.Bin> it = pw.getHistogramIterator();
 
-	@Override
-	public Object getTag(String tagName)
-	{
-		return tags.get(tagName);
-	}
+			for(int i = 0; i < numEntries; i++)
+			{
+				final Histogram.Bin b = it.next();
+				final int count = b.getCount();
+				final double value = b.value;
 
-	@Override
-	public void setTag(String tagName, Object tagValue)
-	{
-		tags.put(tagName, tagValue);
-	}
+				sum += (count * value);
 
-	@Override
-	public Enumeration<String> getTagNames()
-	{
-		return tags.keys();
-	}
+				sumSquared += (value * value * count);
+			}
 
-	@Override
-	public void removeTag(String tagName)
-	{
-		tags.remove(tagName);
-	}
+			final double mean = sum/numPixels;
+			final double squaredMean = sumSquared/numPixels;
 
-	@Override
-	public boolean equals(Object o)
-	{
-		if (this == o)
-			return true;
-		if (!(o instanceof StandardDeviation))
-			return false;
+			int stdDev = (int) Math.round(Math.sqrt(squaredMean - (mean * mean)));
 
-		StandardDeviation that = (StandardDeviation) o;
-
-		if (radius != that.radius)
-			return false;
-		return tags.equals(that.tags);
-	}
-
-	@Override
-	public int hashCode()
-	{
-		int result = radius;
-		result = 31 * result + tags.hashCode();
-		return result;
+			return new int[] {Math.min(stdDev * 2, maxValue)};
+		};
 	}
 }
