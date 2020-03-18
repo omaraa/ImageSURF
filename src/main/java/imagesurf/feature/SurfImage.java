@@ -40,7 +40,7 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
-public class ImageFeatures implements Serializable, ProgressNotifier
+public class SurfImage implements Serializable, ProgressNotifier
 {
 	static final long serialVersionUID = 42L;
 	private static final double SAVE_THRESHOLD = 250d / (2000 * 2000); //250ms for a 2000 * 2000 image
@@ -95,7 +95,7 @@ public class ImageFeatures implements Serializable, ProgressNotifier
 			p.onProgress(current, max, message);
 	}
 
-	public ImageFeatures(ImagePlus imagePlus)
+	public SurfImage(ImagePlus imagePlus)
 	{
 		this(getImagePlusPixels(imagePlus),
 				Utility.INSTANCE.getPixelType(imagePlus),
@@ -108,7 +108,7 @@ public class ImageFeatures implements Serializable, ProgressNotifier
 		);
 	}
 
-	private ImageFeatures(ImageFeatures i)
+	private SurfImage(SurfImage i)
 	{
 		this.width = i.width;
 		this.height = i.height;
@@ -132,7 +132,7 @@ public class ImageFeatures implements Serializable, ProgressNotifier
 		}
 	}
 
-	private ImageFeatures(final Object pixels, final PixelType pixelType, final int width, final int height, final int numChannels, final int numSlices, final int numFrames, String title)
+	private SurfImage(final Object pixels, final PixelType pixelType, final int width, final int height, final int numChannels, final int numSlices, final int numFrames, String title)
 	{
 		this.width = width;
 		this.height = height;
@@ -682,10 +682,10 @@ public class ImageFeatures implements Serializable, ProgressNotifier
 
 	public void serialize(Path path) throws Exception
 	{
-		ImageFeatures copy = new ImageFeatures(this);
+		SurfImage copy = new SurfImage(this);
 		copy.removeEasilyComputedFeatures();
 
-		ImageFeatures toSerialize = copy;
+		SurfImage toSerialize = copy;
 		Utility.INSTANCE.serializeObject(toSerialize, path.toFile(), false);
 	}
 
@@ -736,9 +736,9 @@ public class ImageFeatures implements Serializable, ProgressNotifier
 		return toRemove;
 	}
 
-	public static ImageFeatures deserialize(Path path) throws Exception
+	public static SurfImage deserialize(Path path) throws Exception
 	{
-		return (ImageFeatures) Utility.INSTANCE.deserializeObject(path.toFile(), false);
+		return (SurfImage) Utility.INSTANCE.deserializeObject(path.toFile(), false);
 	}
 
 	private static void recordComputationTime(FeatureCalculator featureCalculator, long time, int numPixels)

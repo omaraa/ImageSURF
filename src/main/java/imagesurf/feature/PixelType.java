@@ -49,7 +49,7 @@ public enum PixelType {
 		for (int c = 0; c < numMergedChannels; c++) {
 			for (FeatureCalculator f : baseCalculators) {
 				FeatureCalculator tagged = f.duplicate();
-				tagged.setTag(ImageFeatures.FEATURE_TAG_CHANNEL_INDEX, c);
+				tagged.setTag(SurfImage.FEATURE_TAG_CHANNEL_INDEX, c);
 				selectedFeatures.add(tagged);
 			}
 		}

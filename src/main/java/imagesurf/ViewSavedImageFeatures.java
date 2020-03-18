@@ -19,7 +19,7 @@ package imagesurf;
 
 import ij.ImagePlus;
 import ij.ImageStack;
-import imagesurf.feature.ImageFeatures;
+import imagesurf.feature.SurfImage;
 import imagesurf.feature.calculator.FeatureCalculator;
 import imagesurf.util.Utility;
 import net.imagej.ImageJ;
@@ -64,7 +64,7 @@ public class ViewSavedImageFeatures implements Command{
 	{
 		try
 		{
-			ImageFeatures features = (ImageFeatures) Utility.INSTANCE.deserializeObject(inputImage, false);
+			SurfImage features = (SurfImage) Utility.INSTANCE.deserializeObject(inputImage, false);
 
 			final ImageStack outputStack = new ImageStack(features.width, features.height);
 
@@ -74,7 +74,7 @@ public class ViewSavedImageFeatures implements Command{
 					for(int mergedChannelIndex = 0; mergedChannelIndex < features.numMergedChannels; mergedChannelIndex++)
 						for(FeatureCalculator f : features.getFeatures())
 						{
-							if(!f.hasTag(ImageFeatures.FEATURE_TAG_CHANNEL_INDEX) || ((Integer) f.getTag(ImageFeatures.FEATURE_TAG_CHANNEL_INDEX)) != mergedChannelIndex)
+							if(!f.hasTag(SurfImage.FEATURE_TAG_CHANNEL_INDEX) || ((Integer) f.getTag(SurfImage.FEATURE_TAG_CHANNEL_INDEX)) != mergedChannelIndex)
 								continue;
 
 							switch (features.pixelType)

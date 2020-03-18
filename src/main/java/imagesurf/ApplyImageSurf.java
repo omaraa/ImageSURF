@@ -20,7 +20,7 @@ package imagesurf;
 import java.io.File;
 
 import imagesurf.classifier.ImageSurfClassifier;
-import imagesurf.feature.ImageFeatures;
+import imagesurf.feature.SurfImage;
 import ij.ImagePlus;
 import ij.ImageStack;
 import net.imagej.Dataset;
@@ -76,7 +76,7 @@ public class ApplyImageSurf implements Command{
 	}
 
 	public static ImageStack run(ImageSurfClassifier imageSurfClassifier, ImagePlus image, StatusService statusService) throws Exception {
-		final ImageFeatures features = new ImageFeatures(image);
+		final SurfImage features = new SurfImage(image);
 
 		if (imageSurfClassifier.getPixelType() != features.pixelType)
 			throw new Exception("Classifier pixel type (" +

@@ -19,7 +19,7 @@ package imagesurf;
 
 import ij.ImagePlus;
 import ij.ImageStack;
-import imagesurf.feature.ImageFeatures;
+import imagesurf.feature.SurfImage;
 import imagesurf.feature.PixelType;
 import imagesurf.feature.calculator.FeatureCalculator;
 import imagesurf.util.Utility;
@@ -69,7 +69,7 @@ public class PreviewImageFeatures implements Command{
 			final int minFeatureRadius = prefs.getInt(ImageSurfSettings.IMAGESURF_MIN_FEATURE_RADIUS, ImageSurfSettings.DEFAULT_MIN_FEATURE_RADIUS);
 			final int maxFeatureRadius = prefs.getInt(ImageSurfSettings.IMAGESURF_MAX_FEATURE_RADIUS, ImageSurfSettings.DEFAULT_MAX_FEATURE_RADIUS);
 
-			final ImageFeatures features = new ImageFeatures(image);
+			final SurfImage features = new SurfImage(image);
 			FeatureCalculator[] featureCalculators = ImageSurfImageFilterSelection.getFeatureCalculators(features.pixelType,
 					minFeatureRadius, maxFeatureRadius, features.numMergedChannels, prefs);
 

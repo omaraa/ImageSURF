@@ -1,7 +1,7 @@
 package imagesurf.util
 
 import imagesurf.classifier.ImageSurfClassifier
-import imagesurf.feature.ImageFeatures
+import imagesurf.feature.SurfImage
 import ij.ImagePlus
 import ij.ImageStack
 import ij.Prefs
@@ -197,7 +197,7 @@ object Utility {
                     tile.bufferedHeight
             )
             val croppedImage = image.duplicate()
-            val croppedFeatures = ImageFeatures(croppedImage)
+            val croppedFeatures = SurfImage(croppedImage)
             val segmentedCroppedStack = segmentImage(imageSurfClassifier, croppedFeatures, tiledStatus)
 
             tile to segmentedCroppedStack
@@ -225,62 +225,62 @@ object Utility {
     }
 
     @Throws(ExecutionException::class, InterruptedException::class)
-    fun segmentImage(imageSurfClassifier: ImageSurfClassifier, features: ImageFeatures, statusService: StatusService): ImageStack {
-        if (imageSurfClassifier.pixelType != features.pixelType)
+    fun segmentImage(imageSurfClassifier: ImageSurfClassifier, surf: SurfImage, statusService: StatusService): ImageStack {
+        if (imageSurfClassifier.pixelType != surf.pixelType)
             throw RuntimeException("Classifier pixel type (" +
-                    imageSurfClassifier.pixelType + ") does not match image pixel type (" + features.pixelType + ")")
+                    imageSurfClassifier.pixelType + ") does not match image pixel type (" + surf.pixelType + ")")
 
-        if (imageSurfClassifier.numChannels != features.numChannels)
-            throw RuntimeException("Classifier trained for " + imageSurfClassifier.numChannels + " channels. Image has " + features.numChannels + " - cannot segment.")
+        if (imageSurfClassifier.numChannels != surf.numChannels)
+            throw RuntimeException("Classifier trained for " + imageSurfClassifier.numChannels + " channels. Image has " + surf.numChannels + " - cannot segment.")
 
         val randomForest = imageSurfClassifier.randomForest.apply { numThreads = Prefs.getThreads() }
         val classColors = getClassColors(randomForest.numClasses)
 
         val featuresProgress = MessageProgress(statusService)
-        features.addProgressListener(featuresProgress)
+        surf.addProgressListener(featuresProgress)
 
         val segmentProgress = MessageProgress(statusService)
         randomForest.addProgressListener(segmentProgress)
 
-        return features.getCalculations(imageSurfClassifier.features)
+        return surf.getCalculations(imageSurfClassifier.features)
                 .mapIndexed { currentSlice, calculation ->
 
                     featuresProgress.message = "Calculating features for plane " +
-                            "$currentSlice/${features.numChannels * features.numSlices * features.numFrames}"
+                            "$currentSlice/${surf.numChannels * surf.numSlices * surf.numFrames}"
                     segmentProgress.message = "Segmenting plane " +
-                            "$currentSlice/${features.numChannels * features.numSlices * features.numFrames}"
+                            "$currentSlice/${surf.numChannels * surf.numSlices * surf.numFrames}"
 
                     calculation.calculate()
                             .let { randomForest.classForInstances(it) }
                             .map(classColors::get).toByteArray()
-                }.fold(ImageStack(features.width, features.height)) { stack, bytes -> stack.apply { addSlice("", bytes) } }
+                }.fold(ImageStack(surf.width, surf.height)) { stack, bytes -> stack.apply { addSlice("", bytes) } }
     }
 
     @Throws(ExecutionException::class, InterruptedException::class)
-    fun calculateImageFeatures(featureCalculators: Array<FeatureCalculator>, features: ImageFeatures, statusService: StatusService, pixelType: PixelType): ImageStack {
+    fun calculateImageFeatures(featureCalculators: Array<FeatureCalculator>, surf: SurfImage, statusService: StatusService, pixelType: PixelType): ImageStack {
 
-        val outputStack = ImageStack(features.width, features.height)
+        val outputStack = ImageStack(surf.width, surf.height)
 
         var currentSlice = 1
-        for (z in 0 until features.numSlices)
-            for (t in 0 until features.numFrames) {
+        for (z in 0 until surf.numSlices)
+            for (t in 0 until surf.numFrames) {
                 val finalCurrentSlice = currentSlice
                 val imageFeaturesProgressListener = object : ProgressListener {
                     override fun onProgress(current: Int, max: Int, message: String) {
                         statusService.showStatus(current, max, "Calculating features for plane " + finalCurrentSlice + "/" +
-                                features.numSlices * features.numFrames)
+                                surf.numSlices * surf.numFrames)
                     }
                 }
 
-                features.addProgressListener(imageFeaturesProgressListener)
-                if (features.calculateFeatures(z, t, featureCalculators))
-                    features.removeProgressListener(imageFeaturesProgressListener)
+                surf.addProgressListener(imageFeaturesProgressListener)
+                if (surf.calculateFeatures(z, t, featureCalculators))
+                    surf.removeProgressListener(imageFeaturesProgressListener)
 
                 for (f in featureCalculators) {
                     when (pixelType) {
 
-                        PixelType.GRAY_8_BIT -> outputStack.addSlice(f.descriptionWithTags, (features.getFeaturePixels(z, t, f) as Array<ByteArray>)[0])
-                        PixelType.GRAY_16_BIT -> outputStack.addSlice(f.descriptionWithTags, (features.getFeaturePixels(z, t, f) as Array<ShortArray>)[0])
+                        PixelType.GRAY_8_BIT -> outputStack.addSlice(f.descriptionWithTags, (surf.getFeaturePixels(z, t, f) as Array<ByteArray>)[0])
+                        PixelType.GRAY_16_BIT -> outputStack.addSlice(f.descriptionWithTags, (surf.getFeaturePixels(z, t, f) as Array<ShortArray>)[0])
                         else -> throw RuntimeException("Unsupported pixel type: $pixelType")
                     }
 

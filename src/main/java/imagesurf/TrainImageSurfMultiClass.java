@@ -188,7 +188,7 @@ public class TrainImageSurfMultiClass implements Command {
         final PixelType pixelType;
         final int numChannels;
         {
-            ImageFeatures prototype = new ImageFeatures(new ImagePlus(rawImageFiles[0].getAbsolutePath()));
+            SurfImage prototype = new SurfImage(new ImagePlus(rawImageFiles[0].getAbsolutePath()));
             numChannels = prototype.numChannels;
             pixelType = prototype.pixelType;
         }
@@ -395,18 +395,18 @@ public class TrainImageSurfMultiClass implements Command {
             try {
                 ImagePlus image = new ImagePlus(imagePath.getAbsolutePath());
 
-                final ImageFeatures imageFeatures;
+                final SurfImage surfImage;
                 if (featureFiles[imageIndex] == null || !featureFiles[imageIndex].exists()) {
-                    imageFeatures = new ImageFeatures(image);
+                    surfImage = new SurfImage(image);
                     log.error(featureFiles[imageIndex].getAbsolutePath() + " doesn't exist.");
 
                 } else {
                     statusService.showStatus("Reading features for image " + (imageIndex + 1) + "/" + numImages);
                     log.info("Reading features for image " + (imageIndex + 1) + "/" + numImages);
-                    imageFeatures = ImageFeatures.deserialize(featureFiles[imageIndex].toPath());
+                    surfImage = SurfImage.deserialize(featureFiles[imageIndex].toPath());
                 }
 
-                ImageStack segmentation = Utility.INSTANCE.segmentImage(imageSurfClassifier, imageFeatures, statusService);
+                ImageStack segmentation = Utility.INSTANCE.segmentImage(imageSurfClassifier, surfImage, statusService);
 
                 segmentationStacks[imageIndex] = segmentation;
                 imageStacks[imageIndex] = image.getStack();
@@ -479,16 +479,16 @@ public class TrainImageSurfMultiClass implements Command {
             try {
                 ImagePlus image = new ImagePlus(imagePath.getAbsolutePath());
 
-                final ImageFeatures imageFeatures;
+                final SurfImage surfImage;
                 if (featureFiles[imageIndex] == null || !featureFiles[imageIndex].exists()) {
-                    imageFeatures = new ImageFeatures(image);
+                    surfImage = new SurfImage(image);
                 } else {
                     statusService.showStatus("Reading features for image " + (imageIndex + 1) + "/" + numImages);
                     log.info("Reading features for image " + (imageIndex + 1) + "/" + numImages);
-                    imageFeatures = ImageFeatures.deserialize(featureFiles[imageIndex].toPath());
+                    surfImage = SurfImage.deserialize(featureFiles[imageIndex].toPath());
                 }
 
-                ImageStack segmentation = Utility.INSTANCE.segmentImage(imageSurfClassifier, imageFeatures, statusService);
+                ImageStack segmentation = Utility.INSTANCE.segmentImage(imageSurfClassifier, surfImage, statusService);
                 ImagePlus segmentationImage = new ImagePlus("segmentation", segmentation);
 
                 if (segmentation.size() > 1)

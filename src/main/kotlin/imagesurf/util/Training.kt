@@ -3,7 +3,7 @@ package imagesurf.util
 import ij.CompositeImage
 import ij.ImagePlus
 import imagesurf.feature.FeatureReader
-import imagesurf.feature.ImageFeatures
+import imagesurf.feature.SurfImage
 import imagesurf.feature.PixelType
 import imagesurf.feature.calculator.FeatureCalculator
 import imagesurf.reader.ByteReader
@@ -55,14 +55,14 @@ object Training {
                 .map { imageIndex ->
                     val rawImage = getRawTrainingImage(rawImageFiles[imageIndex], expectedNumChannels)
 
-                    val (imageFeatures: ImageFeatures, savedFeatures: Collection<FeatureCalculator>) =
+                    val (surfImage: SurfImage, savedFeatures: Collection<FeatureCalculator>) =
                             getImageFeatures(featureFiles, imageIndex, progressListener, numImages, rawImage, pixelType)
 
                     val calculatedFeatures =
-                            calculateFeatures(progressListener, imageIndex, numImages, imageFeatures, selectedFeatures)
+                            calculateFeatures(progressListener, imageIndex, numImages, surfImage, selectedFeatures)
 
-                    if (featureFiles != null && calculatedFeatures && saveCalculatedFeatures && !savedFeatures.containsAll(imageFeatures.easilyComputedFeatures)) {
-                        writeFeatures(progressListener, imageIndex, numImages, featureFiles, imageFeatures)
+                    if (featureFiles != null && calculatedFeatures && saveCalculatedFeatures && !savedFeatures.containsAll(surfImage.easilyComputedFeatures)) {
+                        writeFeatures(progressListener, imageIndex, numImages, featureFiles, surfImage)
                     }
 
                     progressListener.showStatus("Extracting examples from image " + (imageIndex + 1) + "/" + numImages)
@@ -79,7 +79,7 @@ object Training {
 
                     // TODO: Assumes each feature calculate only produces one feature image, but future ones may produce more.
                     (selectedFeatures.map { featureCalculator ->
-                        val featurePixels = (imageFeatures.getFeaturePixels(0, 0, featureCalculator) as Array<Any>)[0]
+                        val featurePixels = (surfImage.getFeaturePixels(0, 0, featureCalculator) as Array<Any>)[0]
 
                         when (pixelType) {
                             PixelType.GRAY_8_BIT -> ByteFeatureImage(selectedPixels.map { (featurePixels as ByteArray)[it] }.toByteArray())
@@ -108,11 +108,11 @@ object Training {
                 .toTypedArray()
     }
 
-    private fun writeFeatures(progressListener: TrainingProgressListener, imageIndex: Int, numImages: Int, featureFiles: Array<File>, imageFeatures: ImageFeatures) {
+    private fun writeFeatures(progressListener: TrainingProgressListener, imageIndex: Int, numImages: Int, featureFiles: Array<File>, surfImage: SurfImage) {
         progressListener.showStatus("Writing features for image ${imageIndex + 1}/$numImages")
         progressListener.logInfo("Writing features to ${featureFiles[imageIndex].toPath()}")
         try {
-            imageFeatures.serialize(featureFiles[imageIndex].toPath())
+            surfImage.serialize(featureFiles[imageIndex].toPath())
         } catch (e: Exception) {
             throw RuntimeException("Failed to save features to file ${featureFiles[imageIndex].absolutePath}", e)
         }
@@ -120,7 +120,7 @@ object Training {
         progressListener.logInfo("Wrote features to ${featureFiles[imageIndex].toPath()}")
     }
 
-    private fun calculateFeatures(progressListener: TrainingProgressListener, imageIndex: Int, numImages: Int, imageFeatures: ImageFeatures, selectedFeatures: Array<FeatureCalculator>): Boolean {
+    private fun calculateFeatures(progressListener: TrainingProgressListener, imageIndex: Int, numImages: Int, surfImage: SurfImage, selectedFeatures: Array<FeatureCalculator>): Boolean {
         var calculatedFeatures = false
 
         try {
@@ -130,12 +130,12 @@ object Training {
                             progressListener.showStatus(current, max, "Calculating features for image ${imageIndex + 1}/$numImages")
                         }
                     }
-            imageFeatures.addProgressListener(ifProgressListener)
+            surfImage.addProgressListener(ifProgressListener)
 
-            if (imageFeatures.calculateFeatures(0, 0, selectedFeatures))
+            if (surfImage.calculateFeatures(0, 0, selectedFeatures))
                 calculatedFeatures = true
 
-            imageFeatures.removeProgressListener(ifProgressListener)
+            surfImage.removeProgressListener(ifProgressListener)
 
         } catch (e: Exception) {
             throw RuntimeException("Failed to calculate features", e)
@@ -143,30 +143,30 @@ object Training {
         return calculatedFeatures
     }
 
-    private fun getImageFeatures(featureFiles: Array<File>?, imageIndex: Int, progressListener: TrainingProgressListener, numImages: Int, rawImage: ImagePlus, pixelType: PixelType): Pair<ImageFeatures, Collection<FeatureCalculator>> {
-        val imageFeatures: ImageFeatures
+    private fun getImageFeatures(featureFiles: Array<File>?, imageIndex: Int, progressListener: TrainingProgressListener, numImages: Int, rawImage: ImagePlus, pixelType: PixelType): Pair<SurfImage, Collection<FeatureCalculator>> {
+        val surfImage: SurfImage
         val savedFeatures: Collection<FeatureCalculator>
         if (featureFiles==null || !featureFiles[imageIndex].exists()) {
             progressListener.logInfo("Reading image ${imageIndex + 1}/$numImages")
-            imageFeatures = ImageFeatures(rawImage)
+            surfImage = SurfImage(rawImage)
             savedFeatures = ArrayList(0)
         } else {
             progressListener.showStatus("Reading features for image ${imageIndex + 1}/$numImages")
             progressListener.logInfo("Reading features for image ${imageIndex + 1}/$numImages")
             try {
-                imageFeatures = ImageFeatures.deserialize(featureFiles[imageIndex].toPath())
+                surfImage = SurfImage.deserialize(featureFiles[imageIndex].toPath())
 
-                if (imageFeatures.pixelType != pixelType)
+                if (surfImage.pixelType != pixelType)
                     throw RuntimeException("imagesurf.util.Training images must all be either 8 or 16 bit greyscale format. " +
-                            "${featureFiles[imageIndex].name} is ${imageFeatures.pixelType}, expected $pixelType")
+                            "${featureFiles[imageIndex].name} is ${surfImage.pixelType}, expected $pixelType")
             } catch (e: Exception) {
                 throw RuntimeException("Failed to read image features", e)
             }
 
-            savedFeatures = imageFeatures.features
+            savedFeatures = surfImage.features
         }
 
-        return Pair(imageFeatures, savedFeatures)
+        return Pair(surfImage, savedFeatures)
     }
 
     private fun getRawTrainingImage(imageFile: File, numChannels: Int): ImagePlus = getImagePlus(imageFile).apply {

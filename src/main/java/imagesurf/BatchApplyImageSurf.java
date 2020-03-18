@@ -21,7 +21,7 @@ import imagesurf.classifier.Classifier;
 import imagesurf.classifier.ImageSurfClassifier;
 import imagesurf.classifier.RandomForest;
 import imagesurf.feature.FeatureReader;
-import imagesurf.feature.ImageFeatures;
+import imagesurf.feature.SurfImage;
 import ij.ImagePlus;
 import ij.ImageStack;
 import ij.Prefs;
@@ -148,18 +148,18 @@ public class BatchApplyImageSurf implements Command{
 
 				File featuresInputFile = new File(imageFile.getParentFile(), imageFile.getName() + ".features");
 
-				final ImageFeatures features;
+				final SurfImage features;
 				if (featuresInputFile == null || !featuresInputFile.exists() || !featuresInputFile.isFile())
 				{
 					log.info("Features "+featuresInputFile.getAbsolutePath()+" does not exist.");
 
-					features = new ImageFeatures(image);
+					features = new SurfImage(image);
 				}
 				else
 				{
 					log.info("Reading features "+featuresInputFile.getAbsolutePath());
 					statusService.showStatus("Reading features "+featuresInputFile.getAbsolutePath());
-					features = ImageFeatures.deserialize(featuresInputFile.toPath());
+					features = SurfImage.deserialize(featuresInputFile.toPath());
 				}
 
 				if (imageSurfClassifier.getPixelType() != features.pixelType)

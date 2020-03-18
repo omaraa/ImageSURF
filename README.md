@@ -1,5 +1,5 @@
 # ImageSURF
-ImageSURF (Image Segmentation Using Random Forests) is an ImageJ plugin and Java API for pixel-based image segmentation that uses an optimised implementation of the Random Forests machine learning algorithm and a set of selected image features.
+ImageSURF (Image Segmentation Using Random Forests) is an ImageJ plugin and Java API for pixel-based image segmentation that uses an optimised implementation of the Random Forests machine learning algorithm and a set of selected image surf.
 
 ImageSURF is freely availabile under the GNU General Public License.
 
