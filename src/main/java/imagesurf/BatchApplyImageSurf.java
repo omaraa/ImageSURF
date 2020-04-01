@@ -37,6 +37,7 @@ import org.scijava.command.Command;
 import org.scijava.log.LogService;
 import org.scijava.plugin.Parameter;
 import org.scijava.plugin.Plugin;
+import org.scijava.prefs.PrefService;
 import org.scijava.widget.FileWidget;
 import imagesurf.util.Utility;
 
@@ -54,6 +55,9 @@ public class BatchApplyImageSurf implements Command{
 
 	@Parameter
 	private StatusService statusService;
+
+	@Parameter
+	private PrefService prefService;
 
 	@Parameter
 	private DatasetService datasetService;
@@ -117,22 +121,14 @@ public class BatchApplyImageSurf implements Command{
 			randomForest = rf;
 		}
 
-		File[] imageFiles = imagesPath.listFiles(new FileFilter()
-		{
-			@Override
-			public boolean accept(File pathname)
-			{
-				if (pathname.isDirectory() || pathname.isHidden())
-					return false;
+		File[] imageFiles = imagesPath.listFiles(pathname -> {
+			if (pathname.isDirectory() || pathname.isHidden())
+				return false;
 
-				if (imagesPattern != null && !imagesPattern.isEmpty() && !pathname.getName().contains(imagesPattern))
-					return false;
+			if (imagesPattern != null && !imagesPattern.isEmpty() && !pathname.getName().contains(imagesPattern))
+				return false;
 
-				if(pathname.getName().endsWith(".features"))
-					return false;
-
-				return true;
-			}
+			return !pathname.getName().endsWith(".features");
 		});
 
 		for (int imageIndex = 0; imageIndex < imageFiles.length; imageIndex++)
@@ -169,29 +165,8 @@ public class BatchApplyImageSurf implements Command{
 				if (imageSurfClassifier.getNumChannels() != features.numChannels)
 					throw new Exception("Classifier trained for "+imageSurfClassifier.getNumChannels()+" channels. Image has "+features.numChannels+" - cannot segment.");
 
-				final ImageStack outputStack = new ImageStack(image.getWidth(), image.getHeight());
-				final int numPixels = image.getWidth() * image.getHeight();
-
-				int currentSlice = 1;
-				for (int z = 0; z < image.getNSlices(); z++)
-					for (int t = 0; t < image.getNFrames(); t++)
-					{
-						progressListener.setMessage("Calculating features for plane ", imageProgressString, image, currentSlice);
-						features.calculateFeatures(z, t, imageSurfClassifier.getFeatures());
-
-						final FeatureReader featureReader = features.getReader(z, t, imageSurfClassifier.getFeatures());
-
-						progressListener.setMessage("Segmenting plane ", imageProgressString, image, currentSlice);
-						int[] classes = randomForest.classForInstances(featureReader, IntStream.range(0, featureReader.getNumInstances()).toArray());
-						byte[] segmentationPixels = new byte[numPixels];
-
-						for (int i = 0; i < numPixels; i++)
-						{
-							segmentationPixels[i] = (byte) (classes[i] == 0 ? 0 : 0xff);
-						}
-
-						outputStack.addSlice("", segmentationPixels);
-					}
+				final int tileSize = prefService.getInt(ImageSurfSettings.IMAGESURF_TILE_SIZE, ImageSurfSettings.DEFAULT_TILE_SIZE);
+				final ImageStack outputStack = ApplyImageSurf.run(imageSurfClassifier, image, statusService, tileSize);
 
 				image.setStack(outputStack);
 

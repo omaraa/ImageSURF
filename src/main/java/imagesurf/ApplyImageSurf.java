@@ -23,6 +23,8 @@ import imagesurf.classifier.ImageSurfClassifier;
 import imagesurf.feature.SurfImage;
 import ij.ImagePlus;
 import ij.ImageStack;
+import imagesurf.segmenter.ImageSegmenter;
+import imagesurf.segmenter.TiledImageSegmenter;
 import net.imagej.Dataset;
 import net.imagej.DatasetService;
 import net.imagej.ImageJ;
@@ -37,6 +39,7 @@ import org.scijava.plugin.Plugin;
 
 import io.scif.services.DatasetIOService;
 import imagesurf.util.Utility;
+import org.scijava.prefs.PrefService;
 
 @Plugin(type = Command.class, headless = true,
 	menuPath = "Plugins>Segmentation>ImageSURF>4a. Apply ImageSURF Classifier")
@@ -50,6 +53,9 @@ public class ApplyImageSurf implements Command{
 
 	@Parameter
 	private DatasetService datasetService;
+
+	@Parameter
+	private PrefService prefService;
 
 	@Parameter
 	private DatasetIOService datasetIOService;
@@ -75,17 +81,22 @@ public class ApplyImageSurf implements Command{
 		ij.command().run(ApplyImageSurf.class, true);
 	}
 
-	public static ImageStack run(ImageSurfClassifier imageSurfClassifier, ImagePlus image, StatusService statusService) throws Exception {
-		final SurfImage features = new SurfImage(image);
-
-		if (imageSurfClassifier.getPixelType() != features.pixelType)
+	public static ImageStack run(ImageSurfClassifier imageSurfClassifier, SurfImage image, StatusService statusService, int tileSize) throws Exception {
+		if (imageSurfClassifier.getPixelType() != image.pixelType)
 			throw new Exception("Classifier pixel type (" +
-					imageSurfClassifier.getPixelType() + ") does not match image pixel type (" + features.pixelType + ")");
+					imageSurfClassifier.getPixelType() + ") does not match image pixel type (" + image.pixelType + ")");
 
-		if (imageSurfClassifier.getNumChannels() != features.numChannels)
-			throw new Exception("Classifier trained for "+imageSurfClassifier.getNumChannels()+" channels. Image has "+features.numChannels+" - cannot segment.");
+		if (imageSurfClassifier.getNumChannels() != image.numChannels)
+			throw new Exception("Classifier trained for "+imageSurfClassifier.getNumChannels()+" channels. Image has "+image.numChannels+" - cannot segment.");
 
-		return Utility.INSTANCE.segmentImageTiled(imageSurfClassifier, image, statusService);
+		final ImageSegmenter imageSegmenter = new TiledImageSegmenter(tileSize);
+
+		return imageSegmenter.segmentImage(imageSurfClassifier, image, statusService);
+	}
+
+	public static ImageStack run(ImageSurfClassifier imageSurfClassifier, ImagePlus image, StatusService statusService, int tileSize) throws Exception {
+		final SurfImage surfImage = new SurfImage(image);
+		return run(imageSurfClassifier, surfImage, statusService, tileSize);
 	}
 
 	@Override
@@ -93,8 +104,9 @@ public class ApplyImageSurf implements Command{
 	{
 		try
 		{
+			final int tileSize = prefService.getInt(ImageSurfSettings.IMAGESURF_TILE_SIZE, ImageSurfSettings.DEFAULT_TILE_SIZE);
 			final ImageSurfClassifier imageSurfClassifier = (ImageSurfClassifier) Utility.INSTANCE.deserializeObject(classifierFile, true);
-			final ImageStack outputStack = run(imageSurfClassifier, image, statusService);
+			final ImageStack outputStack = run(imageSurfClassifier, image, statusService, tileSize);
 			image.setStack(outputStack);
 		}
 		catch (Exception e)

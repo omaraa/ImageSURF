@@ -1,18 +1,14 @@
 package imagesurf.util
 
-import imagesurf.classifier.ImageSurfClassifier
-import imagesurf.feature.SurfImage
 import ij.ImagePlus
 import ij.ImageStack
-import ij.Prefs
+import imagesurf.classifier.ImageSurfClassifier
 import imagesurf.feature.PixelType
+import imagesurf.feature.SurfImage
 import imagesurf.feature.calculator.FeatureCalculator
 import org.scijava.app.StatusService
-
 import java.io.*
-import java.lang.Integer.max
-import java.lang.Integer.min
-import java.util.Random
+import java.util.*
 import java.util.concurrent.ExecutionException
 import java.util.zip.GZIPInputStream
 import java.util.zip.GZIPOutputStream
@@ -126,134 +122,6 @@ object Utility {
             ar[index] = ar[i]
             ar[i] = a
         }
-    }
-
-    data class Tile(
-            val row: Int,
-            val col: Int,
-            val image: ImagePlus,
-            val roiX: Int,
-            val roiY: Int,
-            val roiTargetWidth: Int,
-            val roiTargetHeight: Int,
-            val buffer: Int
-    ) {
-        val bufferedXStart = max(roiX - buffer, 0)
-        val bufferedYStart = max(roiY - buffer, 0)
-        val bufferedXEnd = min(roiX + roiTargetWidth + buffer, image.width-1)
-        val bufferedYEnd = min(roiY + roiTargetHeight + buffer, image.height-1)
-
-        val bufferedWidth = bufferedXEnd - bufferedXStart
-        val bufferedHeight = bufferedYEnd - bufferedYStart
-
-        val roiXEnd = min(roiX + roiTargetWidth, image.width - 1)
-        val roiYEnd = min(roiY + roiTargetHeight, image.height - 1)
-
-
-        val roiWidth = roiXEnd - roiX
-        val roiHeight = roiYEnd - roiY
-
-
-        override fun toString(): String =
-                "($bufferedXStart to $bufferedXEnd) Tile $bufferedXStart,$bufferedYStart $bufferedWidth x $bufferedHeight"
-    }
-
-    @Throws(ExecutionException::class, InterruptedException::class)
-    fun segmentImageTiled(imageSurfClassifier: ImageSurfClassifier, image: ImagePlus, statusService: StatusService): ImageStack {
-
-        val buffer = imageSurfClassifier.features.map { it.radius }.max()!!
-        val roiSize = 350 - (buffer * 2)
-
-        val nCols = (image.width / roiSize) + 1
-        val nRows = (image.height / roiSize) + 1
-
-        val tiles: List<Tile> =
-                (0 until nRows).flatMap { row ->
-                    (0 until nCols).map { col ->
-                        Tile(
-                                row = row,
-                                col = col,
-                                image = image,
-                                roiX = col * roiSize,
-                                roiY = row * roiSize,
-                                roiTargetWidth = roiSize,
-                                roiTargetHeight = roiSize,
-                                buffer = buffer
-                        )
-                    }
-                }
-
-        val segmentedStack: List<ByteArray> = (0 until image.stackSize).map { ByteArray(image.width * image.height) }
-
-        tiles.mapIndexed { index, tile ->
-            val tiledStatus = object : StatusService by statusService {
-                override fun showStatus(p0: Int, p1: Int, p2: String?) = statusService.showStatus(p0, p1, "$p2 tile ${index + 1}/${tiles.size}")
-            }
-
-            image.setRoi(
-                    tile.bufferedXStart,
-                    tile.bufferedYStart,
-                    tile.bufferedWidth,
-                    tile.bufferedHeight
-            )
-            val croppedImage = image.duplicate()
-            val croppedFeatures = SurfImage(croppedImage)
-            val segmentedCroppedStack = segmentImage(imageSurfClassifier, croppedFeatures, tiledStatus)
-
-            tile to segmentedCroppedStack
-        }.forEach { (tile, segmented) ->
-            segmented.toPixels().forEachIndexed { index, pixels ->
-                (tile.roiY until tile.roiYEnd).toList().forEachIndexed { tileRowIndex, destinationRowIndex ->
-                    val sourceIndex = tile.bufferedWidth * tileRowIndex
-                    val destinationIndex = destinationRowIndex * image.width + (tile.col * tile.roiTargetWidth)
-                    System.arraycopy(
-                            pixels,
-                            sourceIndex,
-                            segmentedStack[index],
-                            destinationIndex,
-                            tile.roiWidth
-                    )
-                }
-            }
-        }
-
-        return segmentedStack.fold(ImageStack(image.width, image.height)) { stack, bytes -> stack.apply { addSlice("", bytes) } }
-    }
-
-    private fun ImageStack.toPixels() = (0 until this.size).map { index ->
-        this.getPixels(index + 1)
-    }
-
-    @Throws(ExecutionException::class, InterruptedException::class)
-    fun segmentImage(imageSurfClassifier: ImageSurfClassifier, surf: SurfImage, statusService: StatusService): ImageStack {
-        if (imageSurfClassifier.pixelType != surf.pixelType)
-            throw RuntimeException("Classifier pixel type (" +
-                    imageSurfClassifier.pixelType + ") does not match image pixel type (" + surf.pixelType + ")")
-
-        if (imageSurfClassifier.numChannels != surf.numChannels)
-            throw RuntimeException("Classifier trained for " + imageSurfClassifier.numChannels + " channels. Image has " + surf.numChannels + " - cannot segment.")
-
-        val randomForest = imageSurfClassifier.randomForest.apply { numThreads = Prefs.getThreads() }
-        val classColors = getClassColors(randomForest.numClasses)
-
-        val featuresProgress = MessageProgress(statusService)
-        surf.addProgressListener(featuresProgress)
-
-        val segmentProgress = MessageProgress(statusService)
-        randomForest.addProgressListener(segmentProgress)
-
-        return surf.getCalculations(imageSurfClassifier.features)
-                .mapIndexed { currentSlice, calculation ->
-
-                    featuresProgress.message = "Calculating features for plane " +
-                            "$currentSlice/${surf.numChannels * surf.numSlices * surf.numFrames}"
-                    segmentProgress.message = "Segmenting plane " +
-                            "$currentSlice/${surf.numChannels * surf.numSlices * surf.numFrames}"
-
-                    calculation.calculate()
-                            .let { randomForest.classForInstances(it) }
-                            .map(classColors::get).toByteArray()
-                }.fold(ImageStack(surf.width, surf.height)) { stack, bytes -> stack.apply { addSlice("", bytes) } }
     }
 
     @Throws(ExecutionException::class, InterruptedException::class)

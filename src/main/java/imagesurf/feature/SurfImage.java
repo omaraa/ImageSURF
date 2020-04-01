@@ -57,6 +57,8 @@ public class SurfImage implements Serializable, ProgressNotifier
 	public final int pixelsPerChannel;
 	public final int pixelsPerChannelSlice;
 	public final int pixelsPerChannelFrame;
+	public final int totalMergedSlices;
+	public final int totalSlices;
 
 	public static final String FEATURE_TAG_CHANNEL_INDEX = "Channel";
 
@@ -122,8 +124,10 @@ public class SurfImage implements Serializable, ProgressNotifier
 		this.pixels = i.pixels;
 		this.pixelType = i.pixelType;
 		this.title = i.title;
+		this.totalMergedSlices = numMergedChannels * numFrames * numSlices;
+		this.totalSlices = numChannels * numFrames * numSlices;
 
-		this.features = new Map[numMergedChannels*numFrames*numSlices];
+		this.features = new Map[totalMergedSlices];
 
 		for(int featureIndex = 0; featureIndex < this.features.length; featureIndex++)
 		{
@@ -143,8 +147,9 @@ public class SurfImage implements Serializable, ProgressNotifier
 		this.pixelsPerChannel = width * height;
 		this.pixelsPerChannelSlice = pixelsPerChannel * numChannels;
 		this.pixelsPerChannelFrame = pixelsPerChannelSlice * numSlices;
+		this.totalMergedSlices = numMergedChannels * numFrames * numSlices;
+		this.totalSlices = numChannels * numFrames * numSlices;
 
-		
 		if(width<0 || height <0 || numChannels<0 || numSlices<0 || numFrames<0)
 			throw new IllegalArgumentException("Image dimensions must be positive values");
 
@@ -159,10 +164,10 @@ public class SurfImage implements Serializable, ProgressNotifier
 					numPixels = ((short[]) pixels).length;
 					break;
 				default:
-					numPixels = -1;
+					throw new RuntimeException("Unsupported pixel type: "+pixelType);
 			}
 
-			if(numPixels!=pixelsPerChannelFrame * numFrames)
+			if(numPixels != pixelsPerChannelFrame * numFrames)
 				throw new IllegalArgumentException("Number of pixels must be exactly (frames * slices * channels * width * height pixels) long. Actual=" + numPixels + " Required=" + (pixelsPerChannelFrame * numFrames));
 		}
 
@@ -191,7 +196,7 @@ public class SurfImage implements Serializable, ProgressNotifier
 			}
 		}
 
-		features = new Map[numMergedChannels*numFrames*numSlices];
+		features = new Map[totalMergedSlices];
 		int i = 0;
 		for(int mergedChannelIndex = 0; mergedChannelIndex < numMergedChannels; mergedChannelIndex++)
 			for(int z = 0; z < numSlices; z++)
@@ -761,7 +766,7 @@ public class SurfImage implements Serializable, ProgressNotifier
 		if(times == null)
 			return Double.MAX_VALUE;
 
-		return times.stream().count()/times.size();
+		return times.stream().reduce(0d, Double::sum)/times.size();
 	}
 
 	public interface FeatureCalculation {
@@ -784,5 +789,36 @@ public class SurfImage implements Serializable, ProgressNotifier
 			}
 
 		return calculations;
+	}
+
+	public SurfImage getSubImage(int x, int y, int width, int height) {
+
+		final int pixelsPerChannel = width * height;
+
+		final Object subImagePixels;
+		switch (pixelType)
+		{
+			case GRAY_8_BIT:
+				subImagePixels = new byte[pixelsPerChannel* totalSlices];
+				break;
+			case GRAY_16_BIT:
+				subImagePixels = new short[pixelsPerChannel* totalSlices];
+				break;
+			default:
+				throw new RuntimeException("Pixel type "+pixelType+" not supported.");
+		}
+
+		for(int slice = 0; slice < totalSlices; slice++) {
+			for(int rowIndex = 0; rowIndex < height; rowIndex++) {
+				int destStart = slice * pixelsPerChannel + rowIndex * width;
+				int srcStart = slice * this.pixelsPerChannel + (this.width * (rowIndex + y)) + x;
+
+				System.arraycopy(pixels, srcStart, subImagePixels, destStart, width);
+			}
+		}
+
+		String subImageTitle = title + " ("+x+", "+y+", "+width+", "+height+")";
+
+		return new SurfImage(subImagePixels, pixelType, width, height, numChannels, numSlices, numFrames, subImageTitle);
 	}
 }

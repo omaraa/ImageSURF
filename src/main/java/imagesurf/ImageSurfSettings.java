@@ -44,7 +44,7 @@ public class ImageSurfSettings implements Command
 	public static final int DEFAULT_MIN_FEATURE_RADIUS = 0;
 	public static final int DEFAULT_MAX_FEATURE_RADIUS = 35;
 	public static final int DEFAULT_MAX_FEATURES = PixelType.GRAY_8_BIT.getAllFeatureCalculators(DEFAULT_MIN_FEATURE_RADIUS, DEFAULT_MAX_FEATURE_RADIUS, 1).length;
-
+	public static final int DEFAULT_TILE_SIZE = 200;
 
 	public static final String IMAGESURF_BAG_SIZE = "ImageSURF Bag Size";
 	public static final String IMAGESURF_EXAMPLE_PORTION = "ImageSURF Example Portion";
@@ -53,6 +53,7 @@ public class ImageSurfSettings implements Command
 	public static final String IMAGESURF_NUM_ATTRIBUTES = "ImageSURF Num Attributes";
 	public static final String IMAGESURF_RANDOM_SEED = "ImageSURF Random Seed";
 	public static final String IMAGESURF_MAX_FEATURES = "ImageSURF Max Features";
+	public static final String IMAGESURF_TILE_SIZE = "ImageSURF Tile Size";
 	public static final String IMAGESURF_MIN_FEATURE_RADIUS = "ImageSURF Min Feature Radius";
 	public static final String IMAGESURF_MAX_FEATURE_RADIUS = "ImageSURF Max Feature Radius";
 
@@ -130,6 +131,12 @@ public class ImageSurfSettings implements Command
 					"be randomly created if none is entered.")
 	private String randomSeedString = "";
 
+	@Parameter(label = "Tile size", type = ItemIO.INPUT,
+			description = "Size of the tiles used for processing. Larger tiles are classified more quickly, but also require more RAM.",
+			min = "200",
+			initializer = "initialiseValues")
+	private int tileSize;
+
 	protected void initialiseValues()
 	{
 		numTrees = preferences.getInt(ImageSurfSettings.IMAGESURF_NUM_TREES, ImageSurfSettings.DEFAULT_NUM_TREES);
@@ -139,6 +146,7 @@ public class ImageSurfSettings implements Command
 		maxFeatures = preferences.getInt(ImageSurfSettings.IMAGESURF_MAX_FEATURES, ImageSurfSettings.DEFAULT_MAX_FEATURES);
 		randomSeedString= preferences.get(ImageSurfSettings.IMAGESURF_RANDOM_SEED, null);
 		examplePortion = preferences.getInt(ImageSurfSettings.IMAGESURF_EXAMPLE_PORTION, ImageSurfSettings.DEFAULT_EXAMPLE_PORTION);
+		tileSize = preferences.getInt(ImageSurfSettings.IMAGESURF_TILE_SIZE, ImageSurfSettings.DEFAULT_TILE_SIZE);
 	}
 
 	@Override
@@ -151,6 +159,7 @@ public class ImageSurfSettings implements Command
 		preferences.put(IMAGESURF_NUM_ATTRIBUTES, numAttributes);
 		preferences.put(IMAGESURF_RANDOM_SEED, randomSeedString == null ? "" : randomSeedString);
 		preferences.put(IMAGESURF_MAX_FEATURES, maxFeatures);
+		preferences.put(IMAGESURF_TILE_SIZE, tileSize);
 	}
 
 	public static void main(final String... args) throws Exception {

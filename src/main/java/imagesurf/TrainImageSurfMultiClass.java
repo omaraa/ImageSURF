@@ -31,6 +31,8 @@ import imagesurf.feature.*;
 import imagesurf.feature.calculator.FeatureCalculator;
 import imagesurf.feature.importance.FeatureImportanceCalculator;
 import imagesurf.feature.importance.ScrambleFeatureImportanceCalculator;
+import imagesurf.segmenter.ImageSegmenter;
+import imagesurf.segmenter.TiledImageSegmenter;
 import imagesurf.util.ProgressListener;
 import imagesurf.util.Training;
 import imagesurf.util.Utility;
@@ -320,7 +322,7 @@ public class TrainImageSurfMultiClass implements Command {
         int unclassified = 0;
         final int[] classCounts = new int[numClasses];
         for (short c : reader.getClasses())
-            if (c < 0 || c == 255)
+            if (c < 0 || c >= 255)
                 unclassified++;
             else
                 classCounts[c]++;
@@ -381,6 +383,7 @@ public class TrainImageSurfMultiClass implements Command {
     }
 
     private void segmentTrainingImagesAndDisplay(ImageSurfClassifier imageSurfClassifier, File[] rawImageFiles, File[] featureFiles) {
+        final int tileSize = prefService.getInt(ImageSurfSettings.IMAGESURF_TILE_SIZE, ImageSurfSettings.DEFAULT_TILE_SIZE);
         final PixelType pixelType = imageSurfClassifier.getPixelType();
 
         final int numImages = rawImageFiles.length;
@@ -406,7 +409,7 @@ public class TrainImageSurfMultiClass implements Command {
                     surfImage = SurfImage.deserialize(featureFiles[imageIndex].toPath());
                 }
 
-                ImageStack segmentation = Utility.INSTANCE.segmentImage(imageSurfClassifier, surfImage, statusService);
+                ImageStack segmentation = ApplyImageSurf.run(imageSurfClassifier, surfImage, statusService, tileSize);
 
                 segmentationStacks[imageIndex] = segmentation;
                 imageStacks[imageIndex] = image.getStack();
@@ -469,6 +472,7 @@ public class TrainImageSurfMultiClass implements Command {
     }
 
     private void segmentTrainingImagesAndSave(ImageSurfClassifier imageSurfClassifier, File imageSurfDataPath, File[] rawImageFiles, File[] featureFiles) {
+        final int tileSize = prefService.getInt(ImageSurfSettings.IMAGESURF_TILE_SIZE, ImageSurfSettings.DEFAULT_TILE_SIZE);
         File outputFolder = new File(imageSurfDataPath, "segmented");
         outputFolder.mkdirs();
 
@@ -488,7 +492,7 @@ public class TrainImageSurfMultiClass implements Command {
                     surfImage = SurfImage.deserialize(featureFiles[imageIndex].toPath());
                 }
 
-                ImageStack segmentation = Utility.INSTANCE.segmentImage(imageSurfClassifier, surfImage, statusService);
+                ImageStack segmentation = ApplyImageSurf.run(imageSurfClassifier, surfImage, statusService, tileSize);
                 ImagePlus segmentationImage = new ImagePlus("segmentation", segmentation);
 
                 if (segmentation.size() > 1)
