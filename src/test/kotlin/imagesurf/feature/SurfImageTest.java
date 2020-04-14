@@ -6,7 +6,7 @@ import imagesurf.feature.calculator.Identity;
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.awt.image.ColorModel;
+import java.io.File;
 
 public class SurfImageTest {
 
@@ -17,7 +17,7 @@ public class SurfImageTest {
         for (int i = 0; i < pixels.length; i++)
             pixels[i] = (short) i;
 
-        SurfImage image = new SurfImage(new ImagePlus("", new ShortProcessor(10, 10, pixels, ColorModel.getRGBdefault())));
+        SurfImage image = new SurfImage(new ImagePlus("", new ShortProcessor(10, 10, pixels, null)));
 
         short[][] subImagePixels = (short[][]) image.getSubImage(0, 0, 10, 10).getFeaturePixels(0, 0, Identity.get());
 
@@ -32,7 +32,7 @@ public class SurfImageTest {
         for (int i = 0; i < pixels.length; i++)
             pixels[i] = (short) i;
 
-        SurfImage image = new SurfImage(new ImagePlus("", new ShortProcessor(10, 10, pixels, ColorModel.getRGBdefault())));
+        SurfImage image = new SurfImage(new ImagePlus("", new ShortProcessor(10, 10, pixels, null)));
 
         short[][] subImagePixels = (short[][]) image.getSubImage(0, 5, 10, 5).getFeaturePixels(0, 0, Identity.get());
 
@@ -51,7 +51,7 @@ public class SurfImageTest {
         for (int i = 0; i < pixels.length; i++)
             pixels[i] = (short) i;
 
-        SurfImage image = new SurfImage(new ImagePlus("", new ShortProcessor(10, 10, pixels, ColorModel.getRGBdefault())));
+        SurfImage image = new SurfImage(new ImagePlus("", new ShortProcessor(10, 10, pixels, null)));
 
         short[][] subImagePixels = (short[][]) image.getSubImage(5, 5, 5, 5).getFeaturePixels(0, 0, Identity.get());
 
@@ -64,5 +64,18 @@ public class SurfImageTest {
             expected[c++] = (short) (row * 10 + 55 + col);
 
         Assert.assertArrayEquals(expected, subImagePixels[0]);
+    }
+
+    @Test
+    public void treatsGrayRgbAsSingleChannel() {
+        File imageFile = new  File(getClass().getResource("/nomarski/raw-unannotated/Nomarski-7DIV.png").getFile());
+        SurfImage surfImage = new SurfImage(new ImagePlus(imageFile.getAbsolutePath()));
+
+        Assert.assertEquals(1, surfImage.numChannels);
+
+        File imageFile2 = new  File(getClass().getResource("/nomarski/raw-unannotated/Nomarski-14DIV.png").getFile());
+        SurfImage surfImage2 = new SurfImage(new ImagePlus(imageFile2.getAbsolutePath()));
+
+        Assert.assertEquals(1, surfImage2.numChannels);
     }
 }

@@ -18,8 +18,8 @@ class RandomForestTest {
     @Test
     fun `classifies training pixels accurately in single channel image`() {
 
-        val labelImageFile = arrayOf(File(javaClass.getResource("/nomarski/annotated-2-fixed/Nomarski-7DIV.png").file))
-        val rawImageFile = arrayOf(File(javaClass.getResource("/nomarski/raw-unannotated/Nomarski-7DIV.png").file))
+        val labelImageFile = listOf(File(javaClass.getResource("/nomarski/annotated-2-fixed/Nomarski-7DIV.png").file))
+        val rawImageFile = listOf(File(javaClass.getResource("/nomarski/raw-unannotated/Nomarski-7DIV.png").file))
         val featureFile = null
 
         val trainingExamples = Training.getTrainingExamples(labelImageFile, rawImageFile, rawImageFile, featureFile,
@@ -32,9 +32,9 @@ class RandomForestTest {
     @Test
     fun `classifies training pixels accurately in multi channel image`() {
 
-        val labelImageFile = arrayOf(File(javaClass.getResource("/immuno/annotated/amyloid-beta.tif").file))
-        val unlabelledImageFile = arrayOf(File(javaClass.getResource("/immuno/unannotated/amyloid-beta.tif").file))
-        val rawImageFile = arrayOf(File(javaClass.getResource("/immuno/raw/amyloid-beta.tif").file))
+        val labelImageFile = listOf(File(javaClass.getResource("/immuno/annotated/amyloid-beta.tif").file))
+        val unlabelledImageFile = listOf(File(javaClass.getResource("/immuno/unannotated/amyloid-beta.tif").file))
+        val rawImageFile = listOf(File(javaClass.getResource("/immuno/raw/amyloid-beta.tif").file))
         val featureFile = null
 
         val selectedFeatures = selectedFeaturesMultiChannel
@@ -62,8 +62,8 @@ class RandomForestTest {
     @Test
     fun `feature order does not affect importance calculation in single channel image`() {
 
-        val labelImageFile = arrayOf(File(javaClass.getResource("/nomarski/annotated-2-fixed/Nomarski-7DIV.png").file))
-        val rawImageFile = arrayOf(File(javaClass.getResource("/nomarski/raw-unannotated/Nomarski-7DIV.png").file))
+        val labelImageFile = listOf(File(javaClass.getResource("/nomarski/annotated-2-fixed/Nomarski-7DIV.png").file))
+        val rawImageFile = listOf(File(javaClass.getResource("/nomarski/raw-unannotated/Nomarski-7DIV.png").file))
 
         val featureFile = null
 
@@ -78,9 +78,9 @@ class RandomForestTest {
     @Test
     fun `feature order does not affect importance calculation in multi channel image`() {
 
-        val labelImageFile = arrayOf(File(javaClass.getResource("/immuno/annotated/amyloid-beta.tif").file))
-        val unlabelledImageFile = arrayOf(File(javaClass.getResource("/immuno/unannotated/amyloid-beta.tif").file))
-        val rawImageFile = arrayOf(File(javaClass.getResource("/immuno/raw/amyloid-beta.tif").file))
+        val labelImageFile = listOf(File(javaClass.getResource("/immuno/annotated/amyloid-beta.tif").file))
+        val unlabelledImageFile = listOf(File(javaClass.getResource("/immuno/unannotated/amyloid-beta.tif").file))
+        val rawImageFile = listOf(File(javaClass.getResource("/immuno/raw/amyloid-beta.tif").file))
         val featureFile = null
 
         val selectedFeatures = PixelType.GRAY_8_BIT.getAllFeatureCalculators(0, 25, 3)
@@ -112,8 +112,8 @@ class RandomForestTest {
     @Test
     fun `top features should be sufficient for classification in single channel image`() {
 
-        val labelImageFile = arrayOf(File(javaClass.getResource("/nomarski/annotated-2-fixed/Nomarski-7DIV.png").file))
-        val rawImageFile = arrayOf(File(javaClass.getResource("/nomarski/raw-unannotated/Nomarski-7DIV.png").file))
+        val labelImageFile = listOf(File(javaClass.getResource("/nomarski/annotated-2-fixed/Nomarski-7DIV.png").file))
+        val rawImageFile = listOf(File(javaClass.getResource("/nomarski/raw-unannotated/Nomarski-7DIV.png").file))
 
         val featureFile = null
 
@@ -127,9 +127,9 @@ class RandomForestTest {
     @Test
     fun `top features should be sufficient for classification in multi channel image`() {
 
-        val labelImageFile = arrayOf(File(javaClass.getResource("/immuno/annotated/amyloid-beta.tif").file))
-        val unlabelledImageFile = arrayOf(File(javaClass.getResource("/immuno/unannotated/amyloid-beta.tif").file))
-        val rawImageFile = arrayOf(File(javaClass.getResource("/immuno/raw/amyloid-beta.tif").file))
+        val labelImageFile = listOf(File(javaClass.getResource("/immuno/annotated/amyloid-beta.tif").file))
+        val unlabelledImageFile = listOf(File(javaClass.getResource("/immuno/unannotated/amyloid-beta.tif").file))
+        val rawImageFile = listOf(File(javaClass.getResource("/immuno/raw/amyloid-beta.tif").file))
         val featureFile = null
 
         val selectedFeatures = PixelType.GRAY_8_BIT.getAllFeatureCalculators(0, 25, 3)

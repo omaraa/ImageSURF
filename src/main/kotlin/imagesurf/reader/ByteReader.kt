@@ -5,7 +5,6 @@ import net.mintern.primitive.Primitive
 
 class ByteReader(private val values: Array<ByteArray>, private val classIndex: Int) : FeatureReader {
 
-    constructor(values: Array<Any?>, classIndex: Int) : this(toBytes(values), classIndex)
     constructor(values: List<Any?>, classIndex: Int) : this(toBytes(values), classIndex)
 
     private val numClasses = values[classIndex].toSet().size
@@ -47,4 +46,10 @@ class ByteReader(private val values: Array<ByteArray>, private val classIndex: I
             else -> throw RuntimeException("Failed to read $byteArrays using ByteReader")
         }
     }
+
+    override fun withFeatures(indices: List<Int>): FeatureReader =
+        indices.filter { index: Int -> index != getClassIndex() && index >= 0 }
+            .map { values[it] }
+            .plusElement( values[classIndex] )
+            .let { ByteReader(it, it.lastIndex) }
 }

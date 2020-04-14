@@ -1,7 +1,8 @@
-package imagesurf.classifier
+package imagesurf
 
 import ij.ImagePlus
-import imagesurf.ApplyImageSurf
+import imagesurf.classifier.ImageSurfClassifier
+import imagesurf.classifier.RandomForest
 import imagesurf.feature.PixelType
 import imagesurf.feature.calculator.FeatureCalculator
 import imagesurf.reader.ByteReader
@@ -82,10 +83,10 @@ class ApplyImageSurfTest {
             height: Int
     ) {
         val trainingExamples = Training.getTrainingExamples(
-                arrayOf(labelImageFile),
-                unlabelledImageFile?.let{ arrayOf(it)} ?: arrayOf(rawImageFile),
-                arrayOf(rawImageFile),
-                featureFile?.let { arrayOf(it) },
+                listOf(labelImageFile),
+                unlabelledImageFile?.let{ listOf(it) } ?: listOf(rawImageFile),
+                listOf(rawImageFile),
+                featureFile?.let { listOf(it) } ?: null,
                 random,
                 null,
                 examplePortion,

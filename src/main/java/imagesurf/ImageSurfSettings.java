@@ -44,7 +44,7 @@ public class ImageSurfSettings implements Command
 	public static final int DEFAULT_MIN_FEATURE_RADIUS = 0;
 	public static final int DEFAULT_MAX_FEATURE_RADIUS = 35;
 	public static final int DEFAULT_MAX_FEATURES = PixelType.GRAY_8_BIT.getAllFeatureCalculators(DEFAULT_MIN_FEATURE_RADIUS, DEFAULT_MAX_FEATURE_RADIUS, 1).length;
-	public static final int DEFAULT_TILE_SIZE = 200;
+	public static final int DEFAULT_TILE_SIZE = 1000;
 
 	public static final String IMAGESURF_BAG_SIZE = "ImageSURF Bag Size";
 	public static final String IMAGESURF_EXAMPLE_PORTION = "ImageSURF Example Portion";

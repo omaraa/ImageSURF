@@ -2,49 +2,164 @@ package imagesurf.util
 
 import ij.CompositeImage
 import ij.ImagePlus
+import ij.io.FileSaver
+import imagesurf.ApplyImageSurf
+import imagesurf.ImageSurfSettings
+import imagesurf.TrainImageSurfMultiClass
+import imagesurf.classifier.ImageSurfClassifier
+import imagesurf.classifier.RandomForest
 import imagesurf.feature.FeatureReader
-import imagesurf.feature.SurfImage
 import imagesurf.feature.PixelType
+import imagesurf.feature.SurfImage
 import imagesurf.feature.calculator.FeatureCalculator
-import imagesurf.reader.ByteReader
-import imagesurf.reader.ShortReader
+import org.scijava.app.StatusService
+import org.scijava.log.LogService
+import org.scijava.prefs.PrefService
 import java.io.File
+import java.io.FileFilter
+import java.nio.file.Files
 import java.util.*
+import java.util.stream.IntStream
 
 object Training {
-    fun getSelectedFeaturesReader(optimalFeatures: Array<FeatureCalculator>, allFeatures: Array<FeatureCalculator>,
-                                  trainingExamples: Array<Any>, pixelType: PixelType): FeatureReader {
+    data class Paths(
+            val labelPath: File,
+            val rawImagePath: File,
+            val unlabelledImagePath: File,
+            val imagePattern: String
+    ) {
+        private val imageLabelFileFilter = FileFilter { labelPath ->
+            if (!labelPath.isFile || labelPath.isHidden || !labelPath.canRead()) return@FileFilter false
+            val imageName = labelPath.name
 
-        val numFeatures = optimalFeatures.size
+            //Check for matching image. If it doesn't exist or isn't suitable, exclude this label image
+            val imagePath = File(rawImagePath, imageName)
 
-        val optimisedTrainingExamples: Array<Any?> = arrayOfNulls(numFeatures + 1)
+            return@FileFilter !(!imagePath.exists() || imagePath.isHidden || !imagePath.isFile || !imageName.contains(imagePattern))
+        }
 
-        for (i in 0 until numFeatures)
-            optimisedTrainingExamples[i] = trainingExamples[allFeatures.indexOf(optimalFeatures[i])]
 
-        //Add class annotations
-        optimisedTrainingExamples[numFeatures] = trainingExamples[trainingExamples.size - 1]
+        val labelFiles: List<File> = labelPath.listFiles(imageLabelFileFilter)!!.asList()
 
-        return when (pixelType) {
-            PixelType.GRAY_8_BIT -> ByteReader(optimisedTrainingExamples, numFeatures)
-            PixelType.GRAY_16_BIT -> ShortReader(optimisedTrainingExamples, numFeatures)
+        val rawImageFiles = labelFiles.map { File(rawImagePath, it.name) }
+        val unlabelledFiles = labelFiles.map { File(unlabelledImagePath, it.name) }
+        val imageSurfDataPath: File = File(rawImagePath, TrainImageSurfMultiClass.IMAGESURF_DATA_FOLDER_NAME)
+        val featuresPath = File(imageSurfDataPath, "features")
+        val featureFiles = rawImageFiles.map { i: File -> File(featuresPath, i.name + ".features") }
+
+        fun validate() {
+            if (!labelPath.exists())
+                throw RuntimeException("Could not access training label folder " + labelPath.absolutePath)
+
+            if (labelFiles.isEmpty())
+                throw RuntimeException("Could not find any training labels in folder " + labelPath.absolutePath)
         }
     }
 
-    fun getTrainingExamples(labelFiles: Array<File>, unlabelledFiles: Array<File>, rawImageFiles: Array<File>,
-                            featureFiles: Array<File>?, random: Random, trainingProgressListener: TrainingProgressListener?,
+    class Verification(
+            val expectedCounts: IntArray,
+            val actualCounts: IntArray,
+            val correct: Int
+    ) {
+        val totalPixels: Int = expectedCounts.sum()
+        val numClasses = expectedCounts.size
+
+        fun describe(): String {
+            //Output some info about training to the log and output text
+            val info = StringBuilder("Classes in training set - ")
+            for (i in 0 until numClasses) info.append(i.toString() + ": " + actualCounts[i] + "\t")
+            info.append("\nClasses in verification set - ")
+            for (i in 0 until numClasses) info.append(i.toString() + ": " + expectedCounts[i] + "\t")
+            info.append("""\nSegmenter classifies $correct/$totalPixels """ + (correct.toDouble()
+                    / totalPixels) * 100 + "%) of the training pixels correctly.")
+
+            return info.toString()
+        }
+    }
+
+    @Throws(java.lang.Exception::class)
+    fun segmentTrainingImages(imageSurfClassifier: ImageSurfClassifier, paths: Paths, log: LogService, prefService: PrefService, statusService: StatusService): List<File> {
+        val tileSize = prefService.getInt(ImageSurfSettings.IMAGESURF_TILE_SIZE, ImageSurfSettings.DEFAULT_TILE_SIZE)
+        val outputFolder = Files.createTempDirectory("imagesurf-" + System.nanoTime())
+
+        val rawImageFiles = paths.rawImageFiles
+        val featureFiles: List<File?> = paths.featureFiles
+        val numImages = rawImageFiles.size
+
+        return rawImageFiles.map { File(outputFolder.toFile(), it.name) }
+                .also {
+                    it.forEachIndexed { imageIndex, outputFile ->
+                        val imagePath = rawImageFiles[imageIndex]
+                        val image = ImagePlus(imagePath.absolutePath)
+                        val surfImage: SurfImage
+                        surfImage = if (featureFiles[imageIndex] == null || !featureFiles[imageIndex]!!.exists()) {
+                            SurfImage(image)
+                        } else {
+                            statusService.showStatus("Reading features for image " + (imageIndex + 1) + "/" + numImages)
+                            log.info("Reading features for image " + (imageIndex + 1) + "/" + numImages)
+                            SurfImage.deserialize(featureFiles[imageIndex]!!.toPath())
+                        }
+                        val segmentation = ApplyImageSurf.run(imageSurfClassifier, surfImage, statusService, tileSize)
+                        val segmentationImage = ImagePlus("segmentation", segmentation)
+                        val outputPath = outputFile.absolutePath
+                        if (segmentation.size() > 1) FileSaver(segmentationImage).saveAsTiffStack(outputPath) else FileSaver(segmentationImage).saveAsTiff(outputPath)
+                    }
+                }
+    }
+
+    fun verifySegmentation(reader: FeatureReader, numClasses: Int, randomForest: RandomForest): Verification {
+        val expectedClasses = randomForest.classForInstances(reader, IntStream.range(0, reader.numInstances).toArray())
+        val expectedClassCount = IntArray(numClasses)
+        val actualClassCount = IntArray(numClasses)
+
+        var correct = 0
+        for (i in expectedClasses.indices) {
+            if (expectedClasses[i] == reader.getClassValue(i)) correct++
+            expectedClassCount[expectedClasses[i]]++
+            actualClassCount[reader.getClassValue(i)]++
+        }
+
+        return Verification(
+                expectedCounts = expectedClassCount,
+                actualCounts = actualClassCount,
+                correct = correct
+        )
+    }
+
+    fun getSelectedFeaturesReader(optimalFeatures: Array<FeatureCalculator>, allFeatures: Array<FeatureCalculator>,
+                                  reader: FeatureReader): FeatureReader =
+            optimalFeatures.map { allFeatures.indexOf(it) }
+                    .filter { it != -1 }
+                    .let { reader.withFeatures(it) }
+
+    fun getTrainingExamples(paths: Paths, random: Random, trainingProgressListener: TrainingProgressListener?,
+                            examplePortion: Int, saveCalculatedFeatures: Boolean,
+                            pixelType: PixelType, selectedFeatures: Array<FeatureCalculator>) =
+            getTrainingExamples(
+                    paths.labelFiles,
+                    paths.unlabelledFiles,
+                    paths.rawImageFiles,
+                    paths.featureFiles,
+                    random,
+                    trainingProgressListener,
+                    examplePortion,
+                    saveCalculatedFeatures,
+                    pixelType,
+                    selectedFeatures
+            )
+
+    fun getTrainingExamples(labelFiles: List<File>, unlabelledFiles: List<File>, rawImageFiles: List<File>, featureFiles: List<File>?, random: Random, trainingProgressListener: TrainingProgressListener?,
                             examplePortion: Int, saveCalculatedFeatures: Boolean,
                             pixelType: PixelType, selectedFeatures: Array<FeatureCalculator>): Array<Any> {
 
         val progressListener = trainingProgressListener ?: TrainingProgressListener.dummy
 
-        if (labelFiles.isEmpty())
-            throw RuntimeException("No valid label files")
-
         val numImages = labelFiles.size
-        val examplePixelIndices = getLabelledPixelIndices(labelFiles, unlabelledFiles, progressListener).let {
-            selectExamplePixelIndices(it, random, examplePortion)
-        }
+        val examplePixelIndices = selectExamplePixelIndices(
+                getLabelledPixelIndices(labelFiles, unlabelledFiles, progressListener),
+                random,
+                examplePortion
+        )
 
         val classColors = emptyList<Int>().toMutableList()
 
@@ -108,7 +223,7 @@ object Training {
                 .toTypedArray()
     }
 
-    private fun writeFeatures(progressListener: TrainingProgressListener, imageIndex: Int, numImages: Int, featureFiles: Array<File>, surfImage: SurfImage) {
+    private fun writeFeatures(progressListener: TrainingProgressListener, imageIndex: Int, numImages: Int, featureFiles: List<File>, surfImage: SurfImage) {
         progressListener.showStatus("Writing features for image ${imageIndex + 1}/$numImages")
         progressListener.logInfo("Writing features to ${featureFiles[imageIndex].toPath()}")
         try {
@@ -143,10 +258,10 @@ object Training {
         return calculatedFeatures
     }
 
-    private fun getImageFeatures(featureFiles: Array<File>?, imageIndex: Int, progressListener: TrainingProgressListener, numImages: Int, rawImage: ImagePlus, pixelType: PixelType): Pair<SurfImage, Collection<FeatureCalculator>> {
+    private fun getImageFeatures(featureFiles: List<File>?, imageIndex: Int, progressListener: TrainingProgressListener, numImages: Int, rawImage: ImagePlus, pixelType: PixelType): Pair<SurfImage, Collection<FeatureCalculator>> {
         val surfImage: SurfImage
         val savedFeatures: Collection<FeatureCalculator>
-        if (featureFiles==null || !featureFiles[imageIndex].exists()) {
+        if (featureFiles == null || !featureFiles[imageIndex].exists()) {
             progressListener.logInfo("Reading image ${imageIndex + 1}/$numImages")
             surfImage = SurfImage(rawImage)
             savedFeatures = ArrayList(0)
@@ -193,17 +308,18 @@ object Training {
         return imagePlus
     }
 
-    private fun getLabelledPixelIndices(labelFiles: Array<File>, unlabelledFiles: Array<File>, progressListener: TrainingProgressListener?): List<IntArray> {
+    private fun getLabelledPixelIndices(labelledFiles: List<File>, unlabelledFiles: List<File>, progressListener: TrainingProgressListener?): List<IntArray> {
         var progressListener = progressListener
         if (progressListener == null)
             progressListener = TrainingProgressListener.dummy
 
-        return labelFiles.indices.map { imageIndex ->
-            progressListener.showStatus(imageIndex + 1, labelFiles.size,
-                    "Scanning image labels ${imageIndex + 1}/${labelFiles.size}")
+
+        return labelledFiles.indices.map { imageIndex ->
+            progressListener.showStatus(imageIndex + 1, labelledFiles.size,
+                    "Scanning image labels ${imageIndex + 1}/${labelledFiles.size}")
 
             val unlabelledImagePixels = getLabelImagePixels(unlabelledFiles[imageIndex])
-            val labelImagePixels = getLabelImagePixels(labelFiles[imageIndex])
+            val labelImagePixels = getLabelImagePixels(labelledFiles[imageIndex])
 
             if (unlabelledImagePixels.size != labelImagePixels.size) {
                 progressListener.logError("Un-annotated and annotated images '${unlabelledFiles[imageIndex].name}'" +
@@ -212,8 +328,8 @@ object Training {
 
             val indices = IntArray(unlabelledImagePixels.size)
             var numLabels = 0
-            for(i in 0 until unlabelledImagePixels.size) {
-                if(labelImagePixels[i] != unlabelledImagePixels[i])
+            for (i in 0 until unlabelledImagePixels.size) {
+                if (labelImagePixels[i] != unlabelledImagePixels[i])
                     indices[numLabels++] = i
             }
 
@@ -234,7 +350,7 @@ object Training {
         if (examplePortion >= 100)
             return labelledPixels
 
-        val totalLabelledPixels = labelledPixels.map { it.size}.fold(0) { acc, i -> acc + i }
+        val totalLabelledPixels = labelledPixels.map { it.size }.fold(0) { acc, i -> acc + i }
 
         if (totalLabelledPixels == 0)
             throw RuntimeException("No labels found in label files")
@@ -305,7 +421,7 @@ object Training {
 private fun List<List<Training.FeatureImage<Any>>>.collapseFeatures(pixelType: PixelType, numFeatures: Int) = fold(when (pixelType) {
     PixelType.GRAY_8_BIT -> List(numFeatures + 1) { _ -> Training.ByteFeatureImage(ByteArray(0)) }
     PixelType.GRAY_16_BIT -> List(numFeatures + 1) { _ -> Training.ShortFeatureImage(ShortArray(0)) }
-}) { acc, cur ->
+}) { acc: List<Training.FeatureImage<out Any>>, cur: List<Training.FeatureImage<Any>> ->
     acc.mapIndexed { index, accumulatedFeatures ->
         (cur[index] + accumulatedFeatures as Training.FeatureImage<Any>)
     }

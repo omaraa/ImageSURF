@@ -21,18 +21,18 @@ import ij.IJ;
 import ij.ImagePlus;
 import ij.ImageStack;
 import ij.Prefs;
-import ij.io.FileSaver;
 import ij.process.ByteProcessor;
 import ij.process.ImageProcessor;
 import ij.process.ShortProcessor;
 import imagesurf.classifier.ImageSurfClassifier;
 import imagesurf.classifier.RandomForest;
-import imagesurf.feature.*;
+import imagesurf.feature.FeatureReader;
+import imagesurf.feature.FeatureReaderFactory;
+import imagesurf.feature.PixelType;
+import imagesurf.feature.SurfImage;
 import imagesurf.feature.calculator.FeatureCalculator;
 import imagesurf.feature.importance.FeatureImportanceCalculator;
 import imagesurf.feature.importance.ScrambleFeatureImportanceCalculator;
-import imagesurf.segmenter.ImageSegmenter;
-import imagesurf.segmenter.TiledImageSegmenter;
 import imagesurf.util.ProgressListener;
 import imagesurf.util.Training;
 import imagesurf.util.Utility;
@@ -51,10 +51,15 @@ import org.scijava.ui.UIService;
 import org.scijava.widget.FileWidget;
 
 import java.io.File;
-import java.io.FileFilter;
 import java.io.IOException;
-import java.util.*;
+import java.nio.file.Files;
+import java.util.List;
+import java.util.Optional;
+import java.util.Random;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 @Plugin(type = Command.class, headless = true,
         menuPath = "Plugins>Segmentation>ImageSURF>3. Train ImageSURF Classifier")
@@ -168,45 +173,30 @@ public class TrainImageSurfMultiClass implements Command {
     public void run() {
         checkParameters();
 
-        File[] labelFiles = labelPath.listFiles(imageLabelFileFilter);
-
-        if(labelFiles.length == 0)
-            throw new RuntimeException("Could not find any training labels in folder "+labelPath.getAbsolutePath());
-
-        final File[] rawImageFiles = Arrays.stream(labelFiles)
-                .map((l) -> new File(rawImagePath, l.getName()))
-                .toArray(File[]::new);
-        final File[] unlabelledFiles = Arrays.stream(labelFiles)
-                .map((l) -> new File(unlabelledImagePath, l.getName()))
-                .toArray(File[]::new);
-        final File imageSurfDataPath = new File(rawImagePath, IMAGESURF_DATA_FOLDER_NAME);
-        final File featuresPath = new File(imageSurfDataPath, "features");
-        final File[] featureFiles = Arrays.stream(rawImageFiles)
-                .map((i) -> new File(featuresPath, i.getName() + ".features")).toArray(File[]::new);
+        Training.Paths paths = new Training.Paths(labelPath, rawImagePath, unlabelledImagePath, imagePattern);
+        paths.validate();
 
         if (saveCalculatedFeatures)
-            featuresPath.mkdirs();
+            paths.getFeaturesPath().mkdirs();
 
         final PixelType pixelType;
         final int numChannels;
         {
-            SurfImage prototype = new SurfImage(new ImagePlus(rawImageFiles[0].getAbsolutePath()));
+            SurfImage prototype = new SurfImage(new ImagePlus(paths.getRawImageFiles().get(0).getAbsolutePath()));
             numChannels = prototype.numChannels;
             pixelType = prototype.pixelType;
         }
 
         final FeatureCalculator[] selectedFeatures = getSelectedFeatures(pixelType, numChannels);
-
-        ensureEnoughRamForFeatureImages(rawImageFiles, numChannels, selectedFeatures);
+        ensureEnoughRamForFeatureImages(paths, numChannels, selectedFeatures);
 
         final Random random = getRandom();
 
-        final FeatureReaderFactory readerFactory = new FeatureReaderFactory(pixelType);
         final FeatureReader reader;
-        final Object[] trainingExamples;
         try {
+            final FeatureReaderFactory readerFactory = new FeatureReaderFactory(pixelType);
             int examplePortion = prefService.getInt(ImageSurfSettings.IMAGESURF_EXAMPLE_PORTION, ImageSurfSettings.DEFAULT_EXAMPLE_PORTION);
-            trainingExamples = Training.INSTANCE.getTrainingExamples(labelFiles, unlabelledFiles, rawImageFiles, featureFiles,
+            final Object[] trainingExamples = Training.INSTANCE.getTrainingExamples(paths,
                     random, progressListener, examplePortion, saveCalculatedFeatures,
                     pixelType, selectedFeatures);
 
@@ -235,7 +225,7 @@ public class TrainImageSurfMultiClass implements Command {
                  return null;
             });
 
-            final FeatureReader optimisedFeaturesReader = Training.INSTANCE.getSelectedFeaturesReader(optimalFeatures, selectedFeatures, trainingExamples, pixelType);
+            final FeatureReader optimisedFeaturesReader = Training.INSTANCE.getSelectedFeaturesReader(optimalFeatures, selectedFeatures, reader);
 
             randomForest = builder.withData(optimisedFeaturesReader).build();
         } else {
@@ -246,38 +236,12 @@ public class TrainImageSurfMultiClass implements Command {
         randomForest.addProgressListener(randomForestProgressListener);
 
         try {
-            int[] verificationClasses = randomForest.classForInstances(reader, IntStream.range(0, reader.getNumInstances()).toArray());
-            int[] verificationClassCount = new int[numClasses];
-
-            int[] classCount = new int[numClasses];
-
-            int correct = 0;
-            for (int i = 0; i < verificationClasses.length; i++) {
-                if (verificationClasses[i] == reader.getClassValue(i))
-                    correct++;
-
-                verificationClassCount[verificationClasses[i]]++;
-                classCount[reader.getClassValue(i)]++;
-            }
-
-            //Output some info about training to the log and output text
-            {
-                StringBuilder info = new StringBuilder("Classes in training set - ");
-                for (int i = 0; i < numClasses; i++)
-                    info.append(i + ": " + classCount[i] + "\t");
-
-                info.append("\nClasses in verification set - ");
-                for (int i = 0; i < numClasses; i++)
-                    info.append(i + ": " + verificationClassCount[i] + "\t");
-
-                info.append("\n\nSegmenter classifies " + correct + "/" + verificationClasses.length + " " + (((double) correct)
-                        / verificationClasses.length) * 100 + "%) of the training pixels correctly.");
-
-                log.info(info.toString());
-                ImageSURF = info.toString();
-            }
-        } catch (InterruptedException e) {
+            String verification = Training.INSTANCE.verifySegmentation(reader, numClasses, randomForest).describe();
+            log.info(verification);
+            ImageSURF = verification;
+        } catch( Exception e) {
             log.error(e);
+            IJ.showMessage("Failed to verify ImageSURF classifier. Check error log for details.");
         }
 
         randomForest.removeProgressListener(randomForestProgressListener);
@@ -289,32 +253,34 @@ public class TrainImageSurfMultiClass implements Command {
                 + "\n\n" + ImageSURF + "\n\n";
         ImageSURF += Utility.INSTANCE.describeClassifier(imageSurfClassifier);
 
-        switch (afterTraining) {
-            case AFTER_TRAINING_OPTION_DISPLAY:
-                segmentTrainingImagesAndDisplay(imageSurfClassifier, rawImageFiles, featureFiles);
-                break;
-            case AFTER_TRAINING_OPTION_SAVE:
-                segmentTrainingImagesAndSave(imageSurfClassifier, imageSurfDataPath, rawImageFiles, featureFiles);
-                break;
-            case AFTER_TRAINING_OPTION_NOTHING:
-            default:
-                break;
+        try {
+            switch (afterTraining) {
+                case AFTER_TRAINING_OPTION_DISPLAY:
+                    segmentTrainingImagesAndDisplay(imageSurfClassifier, paths);
+                    break;
+                case AFTER_TRAINING_OPTION_SAVE:
+                    segmentTrainingImagesAndSave(imageSurfClassifier, paths);
+                    break;
+                case AFTER_TRAINING_OPTION_NOTHING:
+                default:
+                    break;
+            }
+        } catch (Exception e) {
+            log.error(e);
+            IJ.showMessage("Failed to train ImageSURF classifier. Check error log for details.");
         }
 
-        if (imageSurfDataPath.exists())
+        if (paths.getImageSurfDataPath().exists())
             IJ.showMessage("ImageSURF training data files " +
                     (AFTER_TRAINING_OPTION_SAVE.equals(afterTraining) ? "and segmented training images " : "") +
-                    "have been created in the folder\n\n" + imageSurfDataPath.getAbsolutePath() + "\n\nIt is recommended " +
+                    "have been created in the folder\n\n" + paths.getImageSurfDataPath().getAbsolutePath() + "\n\nIt is recommended " +
                     "that you delete these files after the imagesurf.classifier has been finalised to save disk space."
             );
     }
 
     private Random getRandom() {
-        final Random random;
-        {
-            String randomSeedString = prefService.get(ImageSurfSettings.IMAGESURF_RANDOM_SEED, null);
-            random = (randomSeedString == null || randomSeedString.isEmpty()) ? new Random() : new Random(randomSeedString.hashCode());
-        }
+        String randomSeedString = prefService.get(ImageSurfSettings.IMAGESURF_RANDOM_SEED, null);
+        final Random random = (randomSeedString == null || randomSeedString.isEmpty()) ? new Random() : new Random(randomSeedString.hashCode());
         return random;
     }
 
@@ -376,133 +342,82 @@ public class TrainImageSurfMultiClass implements Command {
                 numMergedChannels,
                 prefService);
 
-        if (selected == null || selected.length == 0)
+        if (selected.length == 0)
             throw new RuntimeException("Cannot build imagesurf.classifier with no features.");
 
         return selected;
     }
 
-    private void segmentTrainingImagesAndDisplay(ImageSurfClassifier imageSurfClassifier, File[] rawImageFiles, File[] featureFiles) {
-        final int tileSize = prefService.getInt(ImageSurfSettings.IMAGESURF_TILE_SIZE, ImageSurfSettings.DEFAULT_TILE_SIZE);
-        final PixelType pixelType = imageSurfClassifier.getPixelType();
 
-        final int numImages = rawImageFiles.length;
-        final ImageStack[] imageStacks = new ImageStack[numImages];
-        final ImageStack[] segmentationStacks = new ImageStack[numImages];
 
-        int maxHeight = 0;
-        int maxWidth = 0;
+    Function<ImageStack, Stream<? extends ImageProcessor>> getResizeImageFunction(final int maxWidth, final int maxHeight, final PixelType pixelType) {
+        return stack -> {
+            int xOffset = (maxWidth - stack.getWidth()) / 2;
+            int yOffset = (maxHeight - stack.getHeight()) / 2;
 
-        for (int imageIndex = 0; imageIndex < numImages; imageIndex++) {
-            final File imagePath = rawImageFiles[imageIndex];
-            try {
-                ImagePlus image = new ImagePlus(imagePath.getAbsolutePath());
-
-                final SurfImage surfImage;
-                if (featureFiles[imageIndex] == null || !featureFiles[imageIndex].exists()) {
-                    surfImage = new SurfImage(image);
-                    log.error(featureFiles[imageIndex].getAbsolutePath() + " doesn't exist.");
-
-                } else {
-                    statusService.showStatus("Reading features for image " + (imageIndex + 1) + "/" + numImages);
-                    log.info("Reading features for image " + (imageIndex + 1) + "/" + numImages);
-                    surfImage = SurfImage.deserialize(featureFiles[imageIndex].toPath());
-                }
-
-                ImageStack segmentation = ApplyImageSurf.run(imageSurfClassifier, surfImage, statusService, tileSize);
-
-                segmentationStacks[imageIndex] = segmentation;
-                imageStacks[imageIndex] = image.getStack();
-
-                maxWidth = Math.max(maxWidth, image.getWidth());
-                maxHeight = Math.max(maxHeight, image.getHeight());
-            } catch (Exception e) {
-                log.error(e);
-            }
-        }
-
-        List<ImageProcessor> resizedImages = new ArrayList<>();
-        List<ImageProcessor> resizedSegmentations = new ArrayList<>();
-
-        for (int imageIndex = 0; imageIndex < numImages; imageIndex++) {
-            ImageStack segmentationStack = segmentationStacks[imageIndex];
-            ImageStack imageStack = imageStacks[imageIndex];
-
-            int xOffset = (maxWidth - segmentationStack.getWidth()) / 2;
-            int yOffset = (maxHeight - segmentationStack.getHeight()) / 2;
-
-            for (int sliceIndex = 0; sliceIndex < segmentationStack.size(); sliceIndex++) {
-                final ImageProcessor segmentationProcessor;
+            return IntStream.range(0, stack.size()).mapToObj(sliceIndex -> {
                 final ImageProcessor imageProcessor;
                 switch (pixelType) {
                     case GRAY_8_BIT:
-                        segmentationProcessor = new ByteProcessor(maxWidth, maxHeight);
                         imageProcessor = new ByteProcessor(maxWidth, maxHeight);
-
-                        imageProcessor.insert(imageStack.getProcessor(sliceIndex + 1), xOffset, yOffset);
-                        segmentationProcessor.insert(segmentationStack.getProcessor(sliceIndex + 1), xOffset, yOffset);
-
+                        imageProcessor.insert(stack.getProcessor(sliceIndex + 1), xOffset, yOffset);
                         break;
                     case GRAY_16_BIT:
-                        segmentationProcessor = new ShortProcessor(maxWidth, maxHeight);
                         imageProcessor = new ShortProcessor(maxWidth, maxHeight);
-
-                        imageProcessor.insert(imageStack.getProcessor(sliceIndex + 1), xOffset, yOffset);
-                        segmentationProcessor.insert(segmentationStack.getProcessor(sliceIndex + 1), xOffset, yOffset);
+                        imageProcessor.insert(stack.getProcessor(sliceIndex + 1), xOffset, yOffset);
                         break;
                     default:
                         throw new RuntimeException("Pixel type " + pixelType + "not supported.");
                 }
+                return imageProcessor;
+            });
+        };
+    }
 
+    private void segmentTrainingImagesAndDisplay(ImageSurfClassifier imageSurfClassifier, Training.Paths paths) throws Exception {
+        final PixelType pixelType = imageSurfClassifier.getPixelType();
 
-                resizedImages.add(imageProcessor);
-                resizedSegmentations.add(segmentationProcessor);
-            }
-        }
+        final List<ImageStack> imageStacks = paths.getRawImageFiles().stream()
+                .map( f -> new ImagePlus(f.getAbsolutePath()))
+                .map(ImagePlus::getStack)
+                .collect(Collectors.toList());
 
-        ImageStack imageStack = new ImageStack(maxWidth, maxHeight);
-        ImageStack segmentationStack = new ImageStack(maxWidth, maxHeight);
-        for (int processorIndex = 0; processorIndex < resizedImages.size(); processorIndex++) {
-            imageStack.addSlice(resizedImages.get(processorIndex));
-            segmentationStack.addSlice(resizedSegmentations.get(processorIndex));
-        }
+        final List<ImageStack> segmentationStacks = Training.INSTANCE.segmentTrainingImages(imageSurfClassifier, paths, log, prefService, statusService).stream()
+                .map( f -> new ImagePlus(f.getAbsolutePath()))
+                .map(ImagePlus::getStack)
+                .collect(Collectors.toList());
+
+        final int maxHeight = imageStacks.stream().mapToInt(ImageStack::getHeight).max().getAsInt();
+        final int maxWidth = imageStacks.stream().mapToInt(ImageStack::getWidth).max().getAsInt();
+
+        final ImageStack imageStack = new ImageStack(maxWidth, maxHeight);
+        final ImageStack segmentationStack = new ImageStack(maxWidth, maxHeight);
+
+        imageStacks.stream()
+            .flatMap(getResizeImageFunction(maxWidth, maxHeight, pixelType))
+            .forEach(imageStack::addSlice);
+
+        segmentationStacks.stream()
+                .flatMap(getResizeImageFunction(maxWidth, maxHeight, pixelType))
+                .forEach(segmentationStack::addSlice);
 
         new ImagePlus("Segmented imagesurf.util.Training Images", segmentationStack).show();
         new ImagePlus("imagesurf.util.Training Images", imageStack).show();
     }
 
-    private void segmentTrainingImagesAndSave(ImageSurfClassifier imageSurfClassifier, File imageSurfDataPath, File[] rawImageFiles, File[] featureFiles) {
-        final int tileSize = prefService.getInt(ImageSurfSettings.IMAGESURF_TILE_SIZE, ImageSurfSettings.DEFAULT_TILE_SIZE);
-        File outputFolder = new File(imageSurfDataPath, "segmented");
+    private void segmentTrainingImagesAndSave(ImageSurfClassifier imageSurfClassifier, Training.Paths paths) throws Exception {
+        File outputFolder = new File(paths.getImageSurfDataPath(), "segmented");
         outputFolder.mkdirs();
 
-        final int numImages = rawImageFiles.length;
+        List<File> segmented = Training.INSTANCE.segmentTrainingImages(imageSurfClassifier, paths, log, prefService, statusService);
 
-        for (int imageIndex = 0; imageIndex < numImages; imageIndex++) {
-            final File imagePath = rawImageFiles[imageIndex];
+        segmented.forEach(file -> {
             try {
-                ImagePlus image = new ImagePlus(imagePath.getAbsolutePath());
-
-                final SurfImage surfImage;
-                if (featureFiles[imageIndex] == null || !featureFiles[imageIndex].exists()) {
-                    surfImage = new SurfImage(image);
-                } else {
-                    statusService.showStatus("Reading features for image " + (imageIndex + 1) + "/" + numImages);
-                    log.info("Reading features for image " + (imageIndex + 1) + "/" + numImages);
-                    surfImage = SurfImage.deserialize(featureFiles[imageIndex].toPath());
-                }
-
-                ImageStack segmentation = ApplyImageSurf.run(imageSurfClassifier, surfImage, statusService, tileSize);
-                ImagePlus segmentationImage = new ImagePlus("segmentation", segmentation);
-
-                if (segmentation.size() > 1)
-                    new FileSaver(segmentationImage).saveAsTiffStack(new File(outputFolder, imagePath.getName()).getAbsolutePath());
-                else
-                    new FileSaver(segmentationImage).saveAsTiff(new File(outputFolder, imagePath.getName()).getAbsolutePath());
-            } catch (Exception e) {
+                Files.move(file.toPath(), new File(outputFolder, file.getName()).toPath());
+            } catch (IOException e) {
                 log.error(e);
             }
-        }
+        });
     }
 
     private RandomForest.Builder getClassifierBuilder(Random random, int numFeatures) {
@@ -559,29 +474,11 @@ public class TrainImageSurfMultiClass implements Command {
         }
     }
 
-    private final FileFilter imageLabelFileFilter = new FileFilter() {
-        @Override
-        public boolean accept(File labelPath) {
-            if (!labelPath.isFile() || labelPath.isHidden() || !labelPath.canRead())
-                return false;
+    private final void ensureEnoughRamForFeatureImages(Training.Paths paths, int numChannels, FeatureCalculator[] featureCalculators) {
 
-            final String imageName = labelPath.getName();
-
-            //Check for matching image. If it doesn't exist or isn't suitable, exclude this label image
-            File imagePath = new File(TrainImageSurfMultiClass.this.rawImagePath, imageName);
-
-            if (!imagePath.exists() || imagePath.isHidden() || !imagePath.isFile() || !imageName.contains(imagePattern))
-                return false;
-
-            return true;
-        }
-    };
-
-    private final void ensureEnoughRamForFeatureImages(File[] rawImageFiles, int numChannels, FeatureCalculator[] featureCalculators) {
-
-        final Optional<Long> featureFilesSize = Arrays.stream(rawImageFiles)
+        final Optional<Long> featureFilesSize = paths.getRawImageFiles().stream()
                 .map((file) -> {
-                    if(!file.canRead()) return 0l;
+                    if(!file.canRead()) return 0L;
                     else return file.length();
                 })
                 .max(Long::compare);

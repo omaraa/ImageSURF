@@ -103,7 +103,7 @@ public class SurfImage implements Serializable, ProgressNotifier
 				Utility.INSTANCE.getPixelType(imagePlus),
 				imagePlus.getWidth(),
 				imagePlus.getHeight(),
-				new CompositeImage(imagePlus).getNChannels(),
+				getImagePlusNumChannels(imagePlus),
 				imagePlus.getNSlices(),
 				imagePlus.getNFrames(),
 				imagePlus.getTitle()
@@ -115,7 +115,7 @@ public class SurfImage implements Serializable, ProgressNotifier
 		this.width = i.width;
 		this.height = i.height;
 		this.numChannels = i.numChannels;
-		this.numMergedChannels = Utility.INSTANCE.calculateNumMergedChannels(numChannels);
+		this.numMergedChannels = i.numMergedChannels;
 		this.numSlices = i.numSlices;
 		this.numFrames = i.numFrames;
 		this.pixelsPerChannel = i.pixelsPerChannel;
@@ -124,8 +124,8 @@ public class SurfImage implements Serializable, ProgressNotifier
 		this.pixels = i.pixels;
 		this.pixelType = i.pixelType;
 		this.title = i.title;
-		this.totalMergedSlices = numMergedChannels * numFrames * numSlices;
-		this.totalSlices = numChannels * numFrames * numSlices;
+		this.totalMergedSlices = i.totalMergedSlices;
+		this.totalSlices = i.totalSlices;
 
 		this.features = new Map[totalMergedSlices];
 
@@ -495,19 +495,26 @@ public class SurfImage implements Serializable, ProgressNotifier
 		return featureList;
 	}
 
+	private static int getImagePlusNumChannels(final ImagePlus image) {
+		if(Utility.INSTANCE.isGrayScale(image))
+			return 1;
+
+		return image.getDimensions()[2];
+	}
+
 	private static Object getImagePlusPixels(final ImagePlus image)
 	{
 		final ImagePlus compositeImage = new CompositeImage(image);
 
 		final int[] dimensions = compositeImage.getDimensions();
-		int width = dimensions[0];
-		int height = dimensions[1];
-		int numChannels = Utility.INSTANCE.isGrayScale(compositeImage) ? 1 : dimensions[2];
-		int numSlices = dimensions[3];
-		int numFrames = dimensions[4];
-		int pixelsPerChannel = width * height;
-		int pixelsPerSlice = pixelsPerChannel * numChannels;
-		int pixelsPerFrame = pixelsPerSlice * numSlices;
+		final int width = dimensions[0];
+		final int height = dimensions[1];
+		final int numChannels = getImagePlusNumChannels(image);
+		final int numSlices = dimensions[3];
+		final int numFrames = dimensions[4];
+		final int pixelsPerChannel = width * height;
+		final int pixelsPerSlice = pixelsPerChannel * numChannels;
+		final int pixelsPerFrame = pixelsPerSlice * numSlices;
 
 		switch (Utility.INSTANCE.getPixelType(compositeImage))
 		{

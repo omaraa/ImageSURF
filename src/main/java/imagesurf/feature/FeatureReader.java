@@ -18,8 +18,11 @@
 package imagesurf.feature;
 
 import net.mintern.primitive.Primitive;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
 
 public interface FeatureReader
 {
@@ -58,4 +61,52 @@ public interface FeatureReader
 	int getClassIndex();
 
 	int getNumClasses();
+
+    default FeatureReader withFeatures(@NotNull List<Integer> indices) {
+    	final FeatureReader featureReader = this;
+    	final List<Integer> indicesList = indices.stream()
+				.filter( index -> index != getClassIndex() && index >= 0)
+				.collect(Collectors.toList());
+
+    	if(indices.stream().anyMatch( index -> index >= this.getNumFeatures()))
+    		throw new IllegalArgumentException("Indices are out FeatureReader range 0 - " + this.getNumFeatures());
+
+
+    	final int newClassIndex = indicesList.size();
+    	indicesList.add(newClassIndex);
+
+    	final int[] indicesArray = indicesList.stream().mapToInt( Integer::valueOf ).toArray();
+
+    	return new FeatureReader() {
+			@Override
+			public int getClassValue(int instanceIndex) {
+				return featureReader.getClassValue(instanceIndex);
+			}
+
+			@Override
+			public double getValue(int instanceIndex, int attributeIndex) {
+				return featureReader.getValue(instanceIndex, indicesArray[attributeIndex]);
+			}
+
+			@Override
+			public int getNumInstances() {
+				return featureReader.getNumInstances();
+			}
+
+			@Override
+			public int getNumFeatures() {
+				return indices.size();
+			}
+
+			@Override
+			public int getClassIndex() {
+				return newClassIndex;
+			}
+
+			@Override
+			public int getNumClasses() {
+				return featureReader.getNumClasses();
+			}
+		};
+	}
 }

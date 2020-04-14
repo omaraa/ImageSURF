@@ -5,7 +5,6 @@ import net.mintern.primitive.Primitive
 
 class ShortReader(private val values: Array<ShortArray>, private val classIndex: Int) : FeatureReader {
 
-    constructor(values: Array<Any?>, classIndex: Int) : this(toShorts(values), classIndex)
     constructor(values: List<Any?>, classIndex: Int) : this(toShorts(values), classIndex)
 
     private val numClasses = values[classIndex].toSet().size
@@ -47,4 +46,10 @@ class ShortReader(private val values: Array<ShortArray>, private val classIndex:
             else -> throw RuntimeException("Failed to read $shortArrays using ShortReader")
         }
     }
+
+    override fun withFeatures(indices: List<Int>): FeatureReader =
+            indices.filter { index: Int -> index != getClassIndex() && index >= 0 }
+                    .map { values[it] }
+                    .plusElement( values[classIndex] )
+                    .let { ShortReader(it, it.lastIndex) }
 }

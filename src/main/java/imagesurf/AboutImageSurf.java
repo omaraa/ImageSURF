@@ -3,7 +3,6 @@ package imagesurf;
 import net.imagej.ImageJ;
 import org.scijava.ItemIO;
 import org.scijava.command.Command;
-import org.scijava.plugin.Attr;
 import org.scijava.plugin.Parameter;
 import org.scijava.plugin.Plugin;
 
@@ -16,7 +15,7 @@ public class AboutImageSurf implements Command {
 
 	@Override
 	public void run() {
-		ImageSurf = "ABOUT IMAGESURF v1.1.5-20191211\n\n" +
+		ImageSurf = "ABOUT IMAGESURF v1.2.0-20200412-beta\n\n" +
 				"ImageSURF (Image Segmentation Using Random Forests) is an ImageJ2 plugin for pixel-based " +
 				"image segmentation that uses an optimised implementation of the random forests machine learning " +
 				"algorithm and a set of selected image features." +
