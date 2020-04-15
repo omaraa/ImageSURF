@@ -17,10 +17,8 @@
 
 package imagesurf;
 
-import imagesurf.classifier.Classifier;
 import imagesurf.classifier.ImageSurfClassifier;
 import imagesurf.classifier.RandomForest;
-import imagesurf.feature.FeatureReader;
 import imagesurf.feature.SurfImage;
 import ij.ImagePlus;
 import ij.ImageStack;
@@ -42,9 +40,8 @@ import org.scijava.widget.FileWidget;
 import imagesurf.util.Utility;
 
 import java.io.File;
-import java.io.FileFilter;
 import java.io.IOException;
-import java.util.stream.IntStream;
+import java.util.Arrays;
 
 @Plugin(type = Command.class, headless = true,
 	menuPath = "Plugins>Segmentation>ImageSURF>4b. Batch Apply ImageSURF Classifier")
@@ -99,26 +96,27 @@ public class BatchApplyImageSurf implements Command{
 	@Override
 	public void run()
 	{
-		if(imagesPattern == null)
-			imagesPattern = "";
+		final int tileSize = prefService.getInt(ImageSurfSettings.IMAGESURF_TILE_SIZE, ImageSurfSettings.DEFAULT_TILE_SIZE);
+
+		batchApplyImageSurf(classifierFile, imagesOutputPath, imagesPath, imagesPattern, tileSize, progressListener, log, statusService);
+	}
+
+	public static File[] batchApplyImageSurf(File classifierFile, File imagesOutputPath, File imagesPath, final String imagesPattern, int tileSize, ProgressListener progressListener, LogService log, StatusService statusService) {
 
 		final ImageSurfClassifier imageSurfClassifier;
 		try
 		{
 			imageSurfClassifier = (ImageSurfClassifier) Utility.INSTANCE.deserializeObject(classifierFile, true);
+
+			final RandomForest rf = imageSurfClassifier.getRandomForest();
+			rf.setNumThreads(Prefs.getThreads());
+			rf.addProgressListener(progressListener);
+
 		}
 		catch (IOException | ClassNotFoundException e)
 		{
 			log.error("Failed to load imagesurf.classifier", e);
-			return;
-		}
-
-		final Classifier randomForest;
-		{
-			final RandomForest rf = imageSurfClassifier.getRandomForest();
-			rf.setNumThreads(Prefs.getThreads());
-			rf.addProgressListener(progressListener);
-			randomForest = rf;
+			return null;
 		}
 
 		File[] imageFiles = imagesPath.listFiles(pathname -> {
@@ -131,6 +129,10 @@ public class BatchApplyImageSurf implements Command{
 			return !pathname.getName().endsWith(".features");
 		});
 
+		File[] outputFiles = Arrays.stream(imageFiles)
+				.map( imageFile -> new File(imagesOutputPath, imageFile.getName()))
+				.toArray(File[]::new);
+
 		for (int imageIndex = 0; imageIndex < imageFiles.length; imageIndex++)
 		{
 			File imageFile = imageFiles[imageIndex];
@@ -139,8 +141,6 @@ public class BatchApplyImageSurf implements Command{
 			{
 				log.info("Opening "+imageFile.getAbsolutePath());
 				ImagePlus image = new ImagePlus(imageFile.getAbsolutePath());
-				final String imageProgressString = " [image " + (imageIndex + 1) + "/" + imageFiles.length + "]";
-
 
 				File featuresInputFile = new File(imageFile.getParentFile(), imageFile.getName() + ".features");
 
@@ -148,7 +148,6 @@ public class BatchApplyImageSurf implements Command{
 				if (featuresInputFile == null || !featuresInputFile.exists() || !featuresInputFile.isFile())
 				{
 					log.info("Features "+featuresInputFile.getAbsolutePath()+" does not exist.");
-
 					features = new SurfImage(image);
 				}
 				else
@@ -165,43 +164,40 @@ public class BatchApplyImageSurf implements Command{
 				if (imageSurfClassifier.getNumChannels() != features.numChannels)
 					throw new Exception("Classifier trained for "+imageSurfClassifier.getNumChannels()+" channels. Image has "+features.numChannels+" - cannot segment.");
 
-				final int tileSize = prefService.getInt(ImageSurfSettings.IMAGESURF_TILE_SIZE, ImageSurfSettings.DEFAULT_TILE_SIZE);
 				final ImageStack outputStack = ApplyImageSurf.run(imageSurfClassifier, image, statusService, tileSize);
-
-				image.setStack(outputStack);
+				final ImagePlus outputImage = new ImagePlus(image.getTitle(), outputStack);
 
 				File imageOutputFile = new File(imagesOutputPath, imageFile.getName());
+				String imageOutputPath = imageOutputFile.getAbsolutePath();
+				String imageOutputPathLower = imageOutputPath.toLowerCase();
+				FileSaver fileSaver = new FileSaver(outputImage);
+
 				if (image.getNSlices() > 1)
-					new FileSaver(image).saveAsTiffStack(imageOutputFile.getAbsolutePath());
+					fileSaver.saveAsTiffStack(imageOutputPath);
+				else if(imageOutputPathLower.endsWith(".tif") || imageOutputPathLower.endsWith(".tiff"))
+					new FileSaver(image).saveAsTiff(imageOutputPath);
+				else if(imageOutputPathLower.endsWith(".png"))
+					fileSaver.saveAsPng(imageOutputPath);
 				else
-					new FileSaver(image).saveAsTiff(imageOutputFile.getAbsolutePath());
+					new FileSaver(image).saveAsTiff(imageOutputPath);
+
 			}
 			catch (Exception e)
 			{
 				log.error("Failed to segment image "+imageFile.getAbsolutePath(), e);
 			}
 		}
+
+		return outputFiles;
 	}
 
 	private final BatchApplyProgressListener progressListener = new BatchApplyProgressListener();
 
 	private class BatchApplyProgressListener implements ProgressListener {
-		private String prefix = "", suffix = "";
-		private ImagePlus image = null;
-		private int currentSlice = -1;
-
-
-		protected void setMessage(String prefix, String suffix, ImagePlus image, int currentSlice) {
-			this.prefix = prefix;
-			this.suffix = suffix;
-			this.image = image;
-			this.currentSlice = currentSlice;
-		}
 
 		@Override
 		public void onProgress(int current, int max, @NotNull String message) {
-			statusService.showStatus(current, max, prefix + currentSlice + "/" +
-					(image.getNSlices() * image.getNFrames()) + suffix);
+			statusService.showStatus(current, max, message);
 		}
 	}
 }

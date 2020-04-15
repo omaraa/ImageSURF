@@ -30,7 +30,7 @@ interface ImageSegmenter {
             val segmentProgress = Utility.MessageProgress(statusService)
             randomForest.addProgressListener(segmentProgress)
 
-            return image.getCalculations(imageSurfClassifier.features)
+            return image.getSliceCalculations(imageSurfClassifier.features)
                     .mapIndexed { currentSlice, calculation ->
 
                         featuresProgress.message = "Calculating features for plane " +

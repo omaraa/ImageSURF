@@ -780,7 +780,7 @@ public class SurfImage implements Serializable, ProgressNotifier
 		FeatureReader calculate() throws ExecutionException, InterruptedException;
 	}
 
-	public List<FeatureCalculation> getCalculations(FeatureCalculator[] features) {
+	public List<FeatureCalculation> getSliceCalculations(FeatureCalculator[] features) {
 		List<FeatureCalculation> calculations = new ArrayList();
 
 		for(int t = 0; t < numFrames; t++)

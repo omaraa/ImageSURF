@@ -27,6 +27,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import java.util.stream.IntStream
 import kotlin.math.floor
 import kotlin.math.max
+import kotlin.math.min
 
 class RandomForest private constructor(
         val minInstances: Int,
@@ -228,7 +229,7 @@ class RandomForest private constructor(
             .stream()
             .parallel()
             .forEach { threadIndex ->
-                IntRange(batchSize * threadIndex, max(batchSize * threadIndex + batchSize, numInstances - 1)).forEach { index ->
+                IntRange(batchSize * threadIndex, min(batchSize * threadIndex + batchSize, numInstances - 1)).forEach { index ->
                     if (index % progressPoint == 0 || (index + 1) % batchSize == 0) {
                         val currentProgress = progress.getAndIncrement()
                         onProgress(currentProgress, 100, "Segmented $currentProgress%")
@@ -275,7 +276,7 @@ class RandomForest private constructor(
             .stream()
             .parallel()
             .forEach { threadIndex ->
-                IntRange(batchSize * threadIndex, max(batchSize * threadIndex + batchSize, numInstances - 1)).forEach { index ->
+                IntRange(batchSize * threadIndex, min(batchSize * threadIndex + batchSize, numInstances - 1)).forEach { index ->
                     if (index % progressPoint == 0 || (index + 1) % batchSize == 0) {
                         val currentProgress = progress.getAndIncrement()
                         onProgress(currentProgress, 100, "Segmented $currentProgress%")
