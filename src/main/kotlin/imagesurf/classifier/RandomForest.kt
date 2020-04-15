@@ -18,10 +18,7 @@
 package imagesurf.classifier
 
 import imagesurf.feature.FeatureReader
-import imagesurf.util.BasicProgressNotifier
-import imagesurf.util.ProgressListener
-import imagesurf.util.ProgressNotifier
-import imagesurf.util.Utility
+import imagesurf.util.*
 
 import java.io.Serializable
 import java.util.*
@@ -29,6 +26,7 @@ import java.util.concurrent.*
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.stream.IntStream
 import kotlin.math.floor
+import kotlin.math.max
 
 class RandomForest private constructor(
         val minInstances: Int,
@@ -190,25 +188,6 @@ class RandomForest private constructor(
 
     }
 
-    private fun getClassInstances(reader: FeatureReader): Array<IntArray> {
-        val numClasses = this@RandomForest.numClasses
-
-        val classes = reader.classes
-        val classInstances = Array(numClasses) { IntArray(classes.size) }
-        val classCounts = IntArray(numClasses)
-
-
-        for (i in classes.indices) {
-            val classValue = reader.getClassValue(i)
-            classInstances[classValue][classCounts[classValue]++] = i
-        }
-
-        for (i in 0 until numClasses)
-            classInstances[i] = Arrays.copyOf(classInstances[i], classCounts[i])
-
-        return classInstances
-    }
-
     private fun getTrainingSet(bagSize: Int, randomSeed: Long, instanceIndices: IntArray): IntArray =
         Random(randomSeed).let{
             generateSequence { it.nextInt(instanceIndices.size) }
@@ -237,13 +216,23 @@ class RandomForest private constructor(
         val numInstances = data.numInstances
         val distributions = arrayOfNulls<DoubleArray>(numInstances)
 
-        val current = AtomicInteger(0)
-        val e = Executors.newFixedThreadPool(numThreads)
+        val progressPoint = numInstances / 100
+        val progress = AtomicInteger(0)
 
-        for (threadIndex in 0 until numThreads)
-            e.submit {
-                var index = current.getAndIncrement()
-                while (index < numInstances) {
+        //TODO remove dependency on ImageSurfEnvironment and pass executors around
+        val e = ImageSurfEnvironment.getSegmentationExecutor()
+
+        val batchSize = numInstances / numThreads
+
+        e.submit { (0 until numThreads).toList()
+            .stream()
+            .parallel()
+            .forEach { threadIndex ->
+                IntRange(batchSize * threadIndex, max(batchSize * threadIndex + batchSize, numInstances - 1)).forEach { index ->
+                    if (index % progressPoint == 0 || (index + 1) % batchSize == 0) {
+                        val currentProgress = progress.getAndIncrement()
+                        onProgress(currentProgress, 100, "Segmented $currentProgress%")
+                    }
                     val result: DoubleArray
                     val sums = DoubleArray(this@RandomForest.numClasses)
 
@@ -261,33 +250,35 @@ class RandomForest private constructor(
                     }
                     distributions[index] = result
 
-                    index = current.getAndIncrement()
-
                 }
             }
-
-        e.shutdown()
-        e.awaitTermination(Integer.MAX_VALUE.toLong(), TimeUnit.DAYS)
+        }.get()
 
         return distributions.filterNotNull().toTypedArray()
     }
 
     @Throws(InterruptedException::class)
-    @JvmOverloads
     override fun classForInstances(data: FeatureReader, instanceIndices: IntArray): IntArray {
         val numInstances = instanceIndices.size
         val classes = IntArray(numInstances)
         val progressPoint = numInstances / 100
 
-        val current = AtomicInteger(0)
-        val e = Executors.newFixedThreadPool(numThreads)
+        //TODO make sure progress is working properly
+        val progress = AtomicInteger(0)
 
-        for (threadIndex in 0 until numThreads)
-            e.submit {
-                var index = current.getAndIncrement()
-                while (index < numInstances) {
-                    if (index % progressPoint == 0) {
-                        onProgress(index / progressPoint, 100, "Segmented " + index / progressPoint + "%")
+        //TODO remove dependency on ImageSurfEnvironment and pass executors around
+        val e = ImageSurfEnvironment.getSegmentationExecutor()
+
+        val batchSize = numInstances / numThreads
+
+        e.submit { (0 until numThreads).toList()
+            .stream()
+            .parallel()
+            .forEach { threadIndex ->
+                IntRange(batchSize * threadIndex, max(batchSize * threadIndex + batchSize, numInstances - 1)).forEach { index ->
+                    if (index % progressPoint == 0 || (index + 1) % batchSize == 0) {
+                        val currentProgress = progress.getAndIncrement()
+                        onProgress(currentProgress, 100, "Segmented $currentProgress%")
                     }
 
                     val sums = DoubleArray(this@RandomForest.numClasses)
@@ -306,13 +297,9 @@ class RandomForest private constructor(
                             maxClass = c
 
                     classes[index] = maxClass
-
-                    index = current.getAndIncrement()
                 }
             }
-
-        e.shutdown()
-        e.awaitTermination(Integer.MAX_VALUE.toLong(), TimeUnit.DAYS)
+        }.get()
 
         return classes
     }
