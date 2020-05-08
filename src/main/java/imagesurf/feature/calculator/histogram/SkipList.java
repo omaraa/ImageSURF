@@ -3,6 +3,7 @@ package imagesurf.feature.calculator.histogram;
 import it.unimi.dsi.util.XorShift1024StarPhiRandom;
 
 import java.util.NoSuchElementException;
+import java.util.PrimitiveIterator;
 
 /**
  * A skip list is a data structure that allows fast search within
@@ -18,7 +19,7 @@ import java.util.NoSuchElementException;
  *
  * @author SylvanasSun <sylvanas.sun@gmail.com>
  */
-public class SkipList {
+class SkipList {
 
     static final int HEAD_VALUE = Integer.MIN_VALUE;
 
@@ -27,6 +28,7 @@ public class SkipList {
     protected static final double DEFAULT_PROBABILITY = 0.5;
 
     private Node head;
+    private Node tail;
 
     private double probability;
 
@@ -85,12 +87,18 @@ public class SkipList {
             currentLevel++;
         }
         size++;
+
+        if(node.next == null)
+            tail = node;
     }
 
     public void remove(int value) {
         Node node = findNode(value);
         if (node == null || node.value != value)
             throw new NoSuchElementException("The key is not exist!");
+
+        if(node.next == null)
+            tail = node.previous;
 
         // Move to the bottom
         while (node.down != null)
@@ -179,31 +187,56 @@ public class SkipList {
 
     private Node last() {
         Node node = head;
-        {
-            while (node.down != null)
+
+        while(node.next != null)
+            node = node.next;
+
+        while(node.down != null) {
+            while(node.down != null)
                 node = node.down;
-
-            while (node.previous != null)
-                node = node.previous;
-
-            if (node.next != null)
+            while(node.next != null)
                 node = node.next;
         }
 
         return node;
     }
 
-    public int[] ascending() {
-        int[] values = new int[size];
+    PrimitiveIterator.OfInt ascending() {
+        return new PrimitiveIterator.OfInt() {
+            Node node = first();
+            int currentValue = 0;
 
-        Node node = first();
+            @Override
+            public boolean hasNext() {
+                return node.next != null;
+            }
 
-        for(int i = 0; i < size; i++) {
-            values[i] = node.value;
-            node = node.next;
-        }
+            @Override
+            public int nextInt() {
+                currentValue = node.value;
+                node = node.next;
+                return currentValue;
+            }
+        };
+    }
 
-        return values;
+    PrimitiveIterator.OfInt descending() {
+        return new PrimitiveIterator.OfInt() {
+            Node node = last();
+            int currentValue = 0;
+
+            @Override
+            public boolean hasNext() {
+                return node != null && node.previous != null && node.previous != head;
+            }
+
+            @Override
+            public int nextInt() {
+                currentValue = node.value;
+                node = node.previous;
+                return currentValue;
+            }
+        };
     }
 
     private static class Node {
@@ -216,5 +249,21 @@ public class SkipList {
             this.value = value;
             this.level = level;
         }
+    }
+
+    public int firstValue() {
+        Node first = first();
+        if(first == null)
+            throw new NoSuchElementException();
+
+        return first.value;
+    }
+
+    public int lastValue() {
+        Node last = last();
+        if(last == null)
+            throw new NoSuchElementException();
+
+        return last.value;
     }
 }

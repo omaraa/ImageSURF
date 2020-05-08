@@ -78,20 +78,17 @@ public class Histogram {
     }
 
     Iterator<Bin> iterator() {
-        final int[] values = included.ascending();
+        final PrimitiveIterator.OfInt valuesIterator = included.ascending();
 
         return new Iterator<Bin>() {
-            int previousIndex = -1;
-
             @Override
             public boolean hasNext() {
-                return previousIndex + 1 < values.length;
+                return valuesIterator.hasNext();
             }
 
             @Override
             public Bin next() {
-                previousIndex++;
-                return denseBins[values[previousIndex]];
+                return denseBins[valuesIterator.nextInt()];
             }
         };
     }
@@ -105,20 +102,17 @@ public class Histogram {
     }
 
     Iterator<Bin> iteratorDescending() {
-        final int[] values = included.ascending();
+        final PrimitiveIterator.OfInt valuesIterator = included.descending();
 
         return new Iterator<Bin>() {
-            int previousIndex = values.length;
-
             @Override
             public boolean hasNext() {
-                return previousIndex -1 >= 0;
+                return valuesIterator.hasNext();
             }
 
             @Override
             public Bin next() {
-                previousIndex--;
-                return denseBins[values[previousIndex]];
+                return denseBins[valuesIterator.nextInt()];
             }
         };    }
 
