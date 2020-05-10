@@ -12,7 +12,7 @@ class TiledProcessor(
         private val buffer: Int = 0
 ) {
 
-    fun process(surfImage: SurfImage, progressCallback: ((CurrentIndex, Total) -> Unit)?, process: (SurfImage) -> List<Any>): ImageStack {
+    fun process(surfImage: SurfImage, outputPixelType: PixelType = surfImage.pixelType, progressCallback: ((CurrentIndex, Total) -> Unit)?, process: (SurfImage) -> List<Any>): ImageStack {
 
         val nCols = (surfImage.width / roiSize).let { if(surfImage.width%roiSize > 0) it + 1 else it }
         val nRows = (surfImage.height / roiSize).let { if(surfImage.height%roiSize > 0) it + 1 else it }
@@ -33,8 +33,8 @@ class TiledProcessor(
                     }
                 }
 
-        val segmentedStack = (0 until surfImage.totalMergedSlices).map {
-            when(surfImage.pixelType) {
+        val outputStack = (0 until surfImage.totalMergedSlices).map {
+            when(outputPixelType) {
                 PixelType.GRAY_8_BIT -> ByteArray(surfImage.width * surfImage.height)
                 PixelType.GRAY_16_BIT -> ShortArray(surfImage.width * surfImage.height)
             }
@@ -59,7 +59,7 @@ class TiledProcessor(
                     System.arraycopy(
                             pixels,
                             sourceIndex,
-                            segmentedStack[sliceIndex],
+                            outputStack[sliceIndex],
                             destinationIndex,
                             tile.roiWidth
                     )
@@ -67,7 +67,7 @@ class TiledProcessor(
             }
         }
 
-        return segmentedStack.fold(ImageStack(surfImage.width, surfImage.height)) { stack, bytes -> stack.apply { addSlice("", bytes) } }
+        return outputStack.fold(ImageStack(surfImage.width, surfImage.height)) { stack, bytes -> stack.apply { addSlice("", bytes) } }
     }
 
     data class Tile(

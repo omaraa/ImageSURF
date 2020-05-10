@@ -2,6 +2,7 @@ package imagesurf.segmenter
 
 import ij.ImageStack
 import imagesurf.classifier.ImageSurfClassifier
+import imagesurf.feature.PixelType
 import imagesurf.feature.SurfImage
 import org.scijava.app.StatusService
 import java.util.concurrent.ExecutionException
@@ -23,7 +24,7 @@ class TiledImageSegmenter(
 
         val processor = TiledProcessor(roiSize, buffer)
 
-        return processor.process(surfImage, tiledStatus) {
+        return processor.process(surfImage, PixelType.GRAY_8_BIT, tiledStatus) {
             simpleImageSegmenter.segmentImage(imageSurfClassifier, it, statusService).toPixels()
         }
     }

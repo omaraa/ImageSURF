@@ -2,6 +2,7 @@ package imagesurf.segmenter;
 
 import ij.ImagePlus;
 import ij.process.ByteProcessor;
+import imagesurf.feature.PixelType;
 import imagesurf.feature.SurfImage;
 import imagesurf.feature.calculator.Identity;
 import org.junit.Assert;
@@ -23,7 +24,7 @@ public class TiledProcessorTest {
 
         SurfImage image = new SurfImage(new ImagePlus("", new ByteProcessor(width, height, pixels)));
 
-        byte[] outputPixels = (byte[]) processor.process(image, null, surfImage -> {
+        byte[] outputPixels = (byte[]) processor.process(image, PixelType.GRAY_8_BIT, null, surfImage -> {
             Object[] result = (Object[]) surfImage.getFeaturePixels(0, 0, Identity.get());
             List list = new LinkedList();
 
