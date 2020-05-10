@@ -25,10 +25,9 @@ class SkipList {
 
     protected static final XorShift1024StarPhiRandom randomGenerator = new XorShift1024StarPhiRandom();
 
-    protected static final double DEFAULT_PROBABILITY = 0.5;
+    protected static final double DEFAULT_PROBABILITY = 0.8;
 
     private Node head;
-    private Node tail;
 
     private double probability;
 
@@ -87,18 +86,12 @@ class SkipList {
             currentLevel++;
         }
         size++;
-
-        if(node.next == null)
-            tail = node;
     }
 
     public void remove(int value) {
         Node node = findNode(value);
         if (node == null || node.value != value)
             throw new NoSuchElementException("The key is not exist!");
-
-        if(node.next == null)
-            tail = node.previous;
 
         // Move to the bottom
         while (node.down != null)
@@ -208,7 +201,7 @@ class SkipList {
 
             @Override
             public boolean hasNext() {
-                return node.next != null;
+                return node != null;
             }
 
             @Override
