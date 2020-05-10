@@ -46,8 +46,8 @@ public class Range extends NeighbourhoodHistogramCalculator implements Serializa
 	@Override
 	protected Calculator getCalculator(PixelReader reader) {
 		return pw -> {
-			final int min = pw.getHistogramIterator().next().value;
-			final int max = pw.getHistogramIteratorDescending().next().value;
+			final int min = pw.getHistogramMin().value;
+			final int max = pw.getHistogramMax().value;
 
 			return new int[] {max - min};
 		};

@@ -45,6 +45,6 @@ public class Min extends NeighbourhoodHistogramCalculator implements Serializabl
 
 	@Override
 	protected Calculator getCalculator(PixelReader reader) {
-		return pw -> new int[] { pw.getHistogramIterator().next().value };
+		return pw -> new int[] { pw.getHistogramMin().value };
 	}
 }

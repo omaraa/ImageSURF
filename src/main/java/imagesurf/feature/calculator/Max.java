@@ -45,6 +45,6 @@ public class Max extends NeighbourhoodHistogramCalculator implements Serializabl
 
 	@Override
 	protected Calculator getCalculator(PixelReader reader) {
-		return pw -> new int[] { pw.getHistogramIteratorDescending().next().value };
+		return pw -> new int[] { pw.getHistogramMax().value };
 	}
 }
