@@ -1,8 +1,11 @@
 package imagesurf.feature.calculator.histogram;
 
+import org.jetbrains.annotations.NotNull;
+
 import java.util.*;
 
 public class Histogram {
+
     private final Bin[] bins;
 
     private final Bin[] denseBins;
@@ -27,6 +30,10 @@ public class Histogram {
 
     public Histogram copy() {
         return new Histogram(this);
+    }
+
+    public Bin bin(int index) {
+        return denseBins[index];
     }
 
     private Histogram(Histogram histogram) {
@@ -116,6 +123,14 @@ public class Histogram {
             }
         };    }
 
+    public Bin min() {
+        return denseBins[included.firstValue()];
+    }
+
+    public Bin max() {
+        return denseBins[included.lastValue()];
+    }
+
 
     public static class Bin {
         public final int value;
@@ -129,7 +144,7 @@ public class Histogram {
             this.value = value;
         }
 
-        private Bin(Bin bin) {
+        private Bin(@NotNull  Bin bin) {
             value = bin.value;
             count = bin.count;
         }

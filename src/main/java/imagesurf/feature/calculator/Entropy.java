@@ -20,8 +20,12 @@ package imagesurf.feature.calculator;
 import imagesurf.feature.calculator.histogram.Histogram;
 import imagesurf.feature.calculator.histogram.NeighbourhoodHistogramCalculator;
 import imagesurf.feature.calculator.histogram.PixelReader;
+import imagesurf.feature.calculator.histogram.PixelWindow;
+import org.eclipse.collections.api.iterator.DoubleIterator;
+import org.eclipse.collections.impl.map.mutable.primitive.IntDoubleHashMap;
 
 import java.io.Serializable;
+import java.util.Collections;
 import java.util.Iterator;
 
 public class Entropy extends NeighbourhoodHistogramCalculator implements Serializable
@@ -40,23 +44,52 @@ public class Entropy extends NeighbourhoodHistogramCalculator implements Seriali
 
 		final double binsPerBit = (double) reader.numValues() / (double) reader.numBits();
 
-		return pw -> {
+		return new Calculator() {
 
-			final double oneOverTotal = 1d / pw.getNumPixels();
+			final IntDoubleHashMap calculated = new IntDoubleHashMap();
+			int calculatedForNumPixels = 0;
 
-			double entropy = 0;
-			final int numEntries = pw.getNumUniqueValues();
-			final Iterator<Histogram.Bin> it = pw.getHistogramIterator();
+			@Override
+			public int[] calculate(PixelWindow pw) {
+				int numPixels = pw.getNumPixels();
+				final double oneOverTotal = 1d / numPixels;
 
-			//Use a for loop rather than foreach to reduce overhead ot it.hasNext() calls
-			for(int i = 0; i < numEntries; i++)
-			{
-				final Histogram.Bin b = it.next();
-				final double p = b.getCount() * oneOverTotal;
-				entropy += -p * Math.log(p);
+				final Iterator<Histogram.Bin> added;
+				final Iterator<Histogram.Bin> removed;
+				if(calculatedForNumPixels != numPixels) {
+					calculated.clear();
+					added = pw.getHistogramIterator();
+					removed = Collections.emptyIterator();
+					calculatedForNumPixels = numPixels;
+				} else {
+					added = pw.getLastAdded();
+					removed = pw.getLastRemoved();
+				}
+
+				added.forEachRemaining( b -> {
+					final double p = b.getCount() * oneOverTotal;
+					final double entropy = -p * Math.log(p);
+					calculated.put(b.value, entropy);
+				});
+
+				removed.forEachRemaining( b -> {
+					if(b.getCount() == 0) {
+						calculated.remove(b.value);
+					} else {
+						final double p = b.getCount() * oneOverTotal;
+						final double entropy = -p * Math.log(p);
+						calculated.put(b.value, entropy);
+					}
+				});
+
+				double totalEntropy = 0;
+				DoubleIterator it = calculated.values().doubleIterator();
+
+				while(it.hasNext())
+					totalEntropy += it.next();
+
+				return new int[]{(int) Math.floor(totalEntropy * one_over_log2 * binsPerBit)};
 			}
-
-			return new int[] {(int) Math.floor(entropy * one_over_log2 * binsPerBit)};
 		};
 	}
 

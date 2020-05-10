@@ -95,11 +95,6 @@ abstract public class NeighbourhoodHistogramCalculator implements FeatureCalcula
 										  final int width,
 										  final int height) {
 
-		final Calculator[] calculators = Arrays.stream(features)
-				.map( f -> f.getCalculator(reader))
-				.toArray(Calculator[]::new);
-
-		final int nCalculators = calculators.length;
 		final int radius = features[0].radius;
 		final Mask mask = Mask.get(radius);
 		final int maskOffset = -radius;
@@ -121,6 +116,11 @@ abstract public class NeighbourhoodHistogramCalculator implements FeatureCalcula
 								} catch (Exception e) {
 									throw new RuntimeException(e);
 								}
+
+								final Calculator[] calculators = Arrays.stream(features)
+										.map( f -> f.getCalculator(reader))
+										.toArray(Calculator[]::new);
+								final int nCalculators = calculators.length;
 
 								PixelWindow pixelWindow = PixelWindow.get(reader, width, height, mask, maskOffset, y, histogram);
 								final double[][][] rowOutput = Arrays.stream(features)

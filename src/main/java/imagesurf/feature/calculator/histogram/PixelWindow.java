@@ -3,6 +3,10 @@ package imagesurf.feature.calculator.histogram;
 import imagesurf.feature.calculator.histogram.Mask.*;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Set;
+
 
 public class PixelWindow {
     private final Histogram histogram;
@@ -14,6 +18,9 @@ public class PixelWindow {
     final int width;
     final int height;
     final int y;
+
+    private final Set<Integer> added;
+    private final Set<Integer> removed;
 
     private int x = 0;
 
@@ -30,9 +37,51 @@ public class PixelWindow {
         return histogram.iterator();
     }
 
+    public Histogram.Bin getHistogramMin() {
+        return histogram.min();
+    }
+
+    public Histogram.Bin getHistogramMax() {
+        return histogram.max();
+    }
+
     public java.util.Iterator<Histogram.Bin> getHistogramIteratorDescending()
     {
         return histogram.iteratorDescending();
+    }
+
+    public Iterator<Histogram.Bin> getLastAdded() {
+
+        final Iterator<Integer> it = added.iterator();
+        return new Iterator<Histogram.Bin>() {
+
+            @Override
+            public boolean hasNext() {
+                return it.hasNext();
+            }
+
+            @Override
+            public Histogram.Bin next() {
+                return histogram.bin(it.next());
+            }
+        };
+    }
+
+    public Iterator<Histogram.Bin> getLastRemoved() {
+        final Iterator<Integer> it = removed.iterator();
+
+        return new Iterator<Histogram.Bin>() {
+
+            @Override
+            public boolean hasNext() {
+                return it.hasNext();
+            }
+
+            @Override
+            public Histogram.Bin next() {
+                return histogram.bin(it.next());
+            }
+        };
     }
 
     private PixelWindow(
@@ -52,9 +101,15 @@ public class PixelWindow {
         this.width = width;
         this.height = height;
         this.y = y;
+
+        this.added = new HashSet<Integer>(maskRows.length);
+        histogram.iterator().forEachRemaining((b) -> added.add(b.value));
+        this.removed = new HashSet<Integer>(maskRows.length);
     }
 
     void moveWindow() {
+        added.clear();
+        removed.clear();
 
         for (int i = 0; i < maskRows.length; i++) {
             final int currentY = y + i + maskOffset;
@@ -65,11 +120,13 @@ public class PixelWindow {
                 if (oldX >= 0 && oldX < width) {
                     final int oldValue = reader.get(to1d(oldX, currentY, width));
                     histogram.decrement(oldValue);
+                    removed.add(oldValue);
                 }
 
                 if (newX >= 0 && newX < width) {
                     final int newValue = reader.get(to1d(newX, currentY, width));
                     histogram.increment(newValue);
+                    added.add(newValue);
                 }
             }
         }
@@ -78,7 +135,7 @@ public class PixelWindow {
         x++;
     }
 
-    private final static int to1d(int x, int y, int width) {
+    private static int to1d(int x, int y, int width) {
         return y * width + x;
     }
 
@@ -92,18 +149,6 @@ public class PixelWindow {
      * @param y
      * @return
      */
-    static PixelWindow get(
-            final PixelReader reader,
-            final int width,
-            final int height,
-            final Mask mask,
-            final int maskOffset,
-            final int y) {
-        final Histogram sparseHistogram = new Histogram(reader);
-
-        return get(reader, width, height, mask, maskOffset, y, sparseHistogram);
-    }
-
     @NotNull
     static PixelWindow get(PixelReader reader, int width, int height, Mask mask, int maskOffset, int y, Histogram histogram) {
         final MaskRow[] maskRows = mask.rows;
