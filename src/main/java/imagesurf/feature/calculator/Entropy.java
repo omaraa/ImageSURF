@@ -21,8 +21,6 @@ import imagesurf.feature.calculator.histogram.Histogram;
 import imagesurf.feature.calculator.histogram.NeighbourhoodHistogramCalculator;
 import imagesurf.feature.calculator.histogram.PixelReader;
 import imagesurf.feature.calculator.histogram.PixelWindow;
-import org.eclipse.collections.api.iterator.DoubleIterator;
-import org.eclipse.collections.impl.map.mutable.primitive.IntDoubleHashMap;
 
 import java.io.Serializable;
 import java.util.Collections;
@@ -46,7 +44,7 @@ public class Entropy extends NeighbourhoodHistogramCalculator implements Seriali
 
 		return new Calculator() {
 
-			final IntDoubleHashMap calculated = new IntDoubleHashMap();
+			final IntDoubleHashMap calculated = new IntDoubleHashMap(reader.uniqueValues().length);
 			int calculatedForNumPixels = 0;
 
 			@Override
@@ -82,11 +80,7 @@ public class Entropy extends NeighbourhoodHistogramCalculator implements Seriali
 					}
 				});
 
-				double totalEntropy = 0;
-				DoubleIterator it = calculated.values().doubleIterator();
-
-				while(it.hasNext())
-					totalEntropy += it.next();
+				double totalEntropy = calculated.sum();
 
 				return new int[]{(int) Math.floor(totalEntropy * one_over_log2 * binsPerBit)};
 			}

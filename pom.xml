@@ -217,11 +217,5 @@
             <artifactId>dsiutils</artifactId>
             <version>2.6.3</version>
         </dependency>
-        <dependency>
-            <groupId>org.eclipse.collections</groupId>
-            <artifactId>eclipse-collections</artifactId>
-            <version>10.2.0</version>
-        </dependency>
-
     </dependencies>
 </project>
