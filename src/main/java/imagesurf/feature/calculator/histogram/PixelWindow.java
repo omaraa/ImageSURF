@@ -1,11 +1,10 @@
 package imagesurf.feature.calculator.histogram;
 
+import imagesurf.feature.calculator.IntHashSet;
 import imagesurf.feature.calculator.histogram.Mask.*;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.HashSet;
 import java.util.Iterator;
-import java.util.Set;
 
 
 public class PixelWindow {
@@ -19,8 +18,8 @@ public class PixelWindow {
     final int height;
     final int y;
 
-    private final Set<Integer> added;
-    private final Set<Integer> removed;
+    private final IntHashSet added;
+    private final IntHashSet removed;
 
     private int x = 0;
 
@@ -52,7 +51,7 @@ public class PixelWindow {
 
     public Iterator<Histogram.Bin> getLastAdded() {
 
-        final Iterator<Integer> it = added.iterator();
+        final imagesurf.feature.calculator.IntHashSet.IntIterator it = added.intIterator();
         return new Iterator<Histogram.Bin>() {
 
             @Override
@@ -68,7 +67,7 @@ public class PixelWindow {
     }
 
     public Iterator<Histogram.Bin> getLastRemoved() {
-        final Iterator<Integer> it = removed.iterator();
+        final imagesurf.feature.calculator.IntHashSet.IntIterator it = removed.intIterator();
 
         return new Iterator<Histogram.Bin>() {
 
@@ -102,9 +101,9 @@ public class PixelWindow {
         this.height = height;
         this.y = y;
 
-        this.added = new HashSet<Integer>(maskRows.length);
+        this.added = new IntHashSet(maskRows.length);
         histogram.iterator().forEachRemaining((b) -> added.add(b.value));
-        this.removed = new HashSet<Integer>(maskRows.length);
+        this.removed = new IntHashSet(maskRows.length);
     }
 
     void moveWindow() {

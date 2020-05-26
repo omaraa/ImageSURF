@@ -4,7 +4,7 @@ package imagesurf.feature.calculator;
 import java.util.Arrays;
 
 /**
- * This code was adapted from imagesurf.feature.calculator.IntDoubleHashMap
+ * This code was adapted from Eclipse Collections IntDoubleHashMap
  */
 public class IntDoubleHashMap {
     private static final double EMPTY_VALUE = 0.0;
