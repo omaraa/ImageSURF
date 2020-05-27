@@ -30,8 +30,9 @@ import imagesurf.reader.ShortReader;
 import imagesurf.util.ImageSurfEnvironment;
 import imagesurf.util.ProgressListener;
 import imagesurf.util.ProgressNotifier;
-import imagesurf.util.Utility;
+import imagesurf.util.UtilityKt;
 import org.jetbrains.annotations.NotNull;
+import util.UtilityJava;
 
 import java.io.Serializable;
 import java.nio.file.Path;
@@ -100,7 +101,7 @@ public class SurfImage implements Serializable, ProgressNotifier
 	public SurfImage(ImagePlus imagePlus)
 	{
 		this(getImagePlusPixels(imagePlus),
-				Utility.INSTANCE.getPixelType(imagePlus),
+				UtilityKt.INSTANCE.getPixelType(imagePlus),
 				imagePlus.getWidth(),
 				imagePlus.getHeight(),
 				getImagePlusNumChannels(imagePlus),
@@ -141,7 +142,7 @@ public class SurfImage implements Serializable, ProgressNotifier
 		this.width = width;
 		this.height = height;
 		this.numChannels = numChannels;
-		this.numMergedChannels = Utility.INSTANCE.calculateNumMergedChannels(numChannels);
+		this.numMergedChannels = UtilityKt.INSTANCE.calculateNumMergedChannels(numChannels);
 		this.numSlices = numSlices;
 		this.numFrames = numFrames;
 		this.pixelsPerChannel = width * height;
@@ -496,7 +497,7 @@ public class SurfImage implements Serializable, ProgressNotifier
 	}
 
 	private static int getImagePlusNumChannels(final ImagePlus image) {
-		if(Utility.INSTANCE.isGrayScale(image))
+		if(UtilityJava.isGrayScale(image))
 			return 1;
 
 		return image.getDimensions()[2];
@@ -516,7 +517,7 @@ public class SurfImage implements Serializable, ProgressNotifier
 		final int pixelsPerSlice = pixelsPerChannel * numChannels;
 		final int pixelsPerFrame = pixelsPerSlice * numSlices;
 
-		switch (Utility.INSTANCE.getPixelType(compositeImage))
+		switch (UtilityKt.INSTANCE.getPixelType(compositeImage))
 		{
 			case GRAY_8_BIT:
 			{
@@ -698,7 +699,7 @@ public class SurfImage implements Serializable, ProgressNotifier
 		copy.removeEasilyComputedFeatures();
 
 		SurfImage toSerialize = copy;
-		Utility.INSTANCE.serializeObject(toSerialize, path.toFile(), false);
+		UtilityJava.serializeObject(toSerialize, path.toFile(), false);
 	}
 
 	private void removeEasilyComputedFeatures()
@@ -750,7 +751,7 @@ public class SurfImage implements Serializable, ProgressNotifier
 
 	public static SurfImage deserialize(Path path) throws Exception
 	{
-		return (SurfImage) Utility.INSTANCE.deserializeObject(path.toFile(), false);
+		return (SurfImage) UtilityJava.deserializeObject(path.toFile(), false);
 	}
 
 	private static void recordComputationTime(FeatureCalculator featureCalculator, long time, int numPixels)

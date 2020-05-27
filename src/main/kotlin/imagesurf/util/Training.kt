@@ -15,6 +15,7 @@ import imagesurf.feature.calculator.FeatureCalculator
 import org.scijava.app.StatusService
 import org.scijava.log.LogService
 import org.scijava.prefs.PrefService
+import util.UtilityJava
 import java.io.File
 import java.io.FileFilter
 import java.nio.file.Files
@@ -299,7 +300,7 @@ object Training {
         val imagePlus = ImagePlus(rawImageFile.absolutePath)
 
         if (imagePlus.type == ImagePlus.COLOR_RGB) {
-            return if (Utility.isGrayScale(imagePlus)) {
+            return if (UtilityJava.isGrayScale(imagePlus)) {
                 ImagePlus(imagePlus.title, imagePlus.channelProcessor)
             } else {
                 CompositeImage(imagePlus, CompositeImage.GRAYSCALE)

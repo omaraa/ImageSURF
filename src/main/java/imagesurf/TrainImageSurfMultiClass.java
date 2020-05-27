@@ -35,7 +35,7 @@ import imagesurf.feature.importance.FeatureImportanceCalculator;
 import imagesurf.feature.importance.ScrambleFeatureImportanceCalculator;
 import imagesurf.util.ProgressListener;
 import imagesurf.util.Training;
-import imagesurf.util.Utility;
+import imagesurf.util.UtilityKt;
 import net.imagej.Dataset;
 import net.imagej.ImageJ;
 import org.scijava.ItemIO;
@@ -49,6 +49,7 @@ import org.scijava.prefs.PrefService;
 import org.scijava.ui.DialogPrompt;
 import org.scijava.ui.UIService;
 import org.scijava.widget.FileWidget;
+import util.UtilityJava;
 
 import java.io.File;
 import java.io.IOException;
@@ -251,7 +252,7 @@ public class TrainImageSurfMultiClass implements Command {
 
         ImageSURF = "ImageSURF classifier successfully trained and saved to " + classifierOutputPath.getAbsolutePath()
                 + "\n\n" + ImageSURF + "\n\n";
-        ImageSURF += Utility.INSTANCE.describeClassifier(imageSurfClassifier);
+        ImageSURF += UtilityKt.INSTANCE.describeClassifier(imageSurfClassifier);
 
         try {
             switch (afterTraining) {
@@ -333,7 +334,7 @@ public class TrainImageSurfMultiClass implements Command {
     }
 
     private FeatureCalculator[] getSelectedFeatures(PixelType pixelType, int numChannels) {
-        final int numMergedChannels = Utility.INSTANCE.calculateNumMergedChannels(numChannels);
+        final int numMergedChannels = UtilityKt.INSTANCE.calculateNumMergedChannels(numChannels);
 
         FeatureCalculator[] selected = ImageSurfImageFilterSelection.getFeatureCalculators(
                 pixelType,
@@ -427,7 +428,7 @@ public class TrainImageSurfMultiClass implements Command {
         int bagSize = prefService.getInt(ImageSurfSettings.IMAGESURF_BAG_SIZE, ImageSurfSettings.DEFAULT_BAG_SIZE);
 
         if (numAttributes <= 0) {
-            numAttributes = (int) (Utility.INSTANCE.log2(numFeatures - 1) + 1);
+            numAttributes = (int) (UtilityJava.log2(numFeatures - 1) + 1);
             if (numAttributes <= 0)
                 numAttributes = 1;
         }
@@ -452,7 +453,7 @@ public class TrainImageSurfMultiClass implements Command {
 
         while (!writeSuccessful) {
             try {
-                Utility.INSTANCE.serializeObject(imageSurfClassifier, classifierOutputPath, true);
+                UtilityJava.serializeObject(imageSurfClassifier, classifierOutputPath, true);
                 writeSuccessful = true;
                 log.trace("Classifier saved.");
             } catch (IOException e) {

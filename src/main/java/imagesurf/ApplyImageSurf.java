@@ -38,8 +38,9 @@ import org.scijava.plugin.Parameter;
 import org.scijava.plugin.Plugin;
 
 import io.scif.services.DatasetIOService;
-import imagesurf.util.Utility;
+import imagesurf.util.UtilityKt;
 import org.scijava.prefs.PrefService;
+import util.UtilityJava;
 
 @Plugin(type = Command.class, headless = true,
 	menuPath = "Plugins>Segmentation>ImageSURF>4a. Apply ImageSURF Classifier")
@@ -105,7 +106,7 @@ public class ApplyImageSurf implements Command{
 		try
 		{
 			final int tileSize = prefService.getInt(ImageSurfSettings.IMAGESURF_TILE_SIZE, ImageSurfSettings.DEFAULT_TILE_SIZE);
-			final ImageSurfClassifier imageSurfClassifier = (ImageSurfClassifier) Utility.INSTANCE.deserializeObject(classifierFile, true);
+			final ImageSurfClassifier imageSurfClassifier = (ImageSurfClassifier) UtilityJava.deserializeObject(classifierFile, true);
 			final ImageStack outputStack = run(imageSurfClassifier, image, statusService, tileSize);
 			image.setStack(outputStack);
 		}

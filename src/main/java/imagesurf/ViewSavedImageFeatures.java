@@ -21,7 +21,7 @@ import ij.ImagePlus;
 import ij.ImageStack;
 import imagesurf.feature.SurfImage;
 import imagesurf.feature.calculator.FeatureCalculator;
-import imagesurf.util.Utility;
+import imagesurf.util.UtilityKt;
 import net.imagej.ImageJ;
 import org.scijava.ItemIO;
 import org.scijava.app.StatusService;
@@ -30,6 +30,7 @@ import org.scijava.log.LogService;
 import org.scijava.plugin.Parameter;
 import org.scijava.plugin.Plugin;
 import org.scijava.prefs.PrefService;
+import util.UtilityJava;
 
 import java.io.File;
 
@@ -64,7 +65,7 @@ public class ViewSavedImageFeatures implements Command{
 	{
 		try
 		{
-			SurfImage features = (SurfImage) Utility.INSTANCE.deserializeObject(inputImage, false);
+			SurfImage features = (SurfImage) UtilityJava.deserializeObject(inputImage, false);
 
 			final ImageStack outputStack = new ImageStack(features.width, features.height);
 

@@ -18,7 +18,8 @@
 package imagesurf.classifier
 
 import imagesurf.feature.FeatureReader
-import imagesurf.util.Utility
+import imagesurf.util.UtilityKt
+import util.UtilityJava
 import java.io.Serializable
 import java.util.*
 
@@ -111,16 +112,16 @@ class RandomTree(val randomForest: RandomForest) : Serializable {
         }
 
         // Check if node doesn't contain enough instances, is pure, or maximum depth reached
-        val totalWeight = Utility.sum(classProbs)
+        val totalWeight = UtilityJava.sum(classProbs)
 
         if (totalWeight < 2 * randomForest.minInstances
-                || Utility.eq(classProbs[Utility.maxIndex(classProbs)], Utility.sum(classProbs))
+                || UtilityJava.eq(classProbs[UtilityJava.maxIndex(classProbs)], UtilityJava.sum(classProbs))
                 || randomForest.maxDepth > 0 && depth >= randomForest.maxDepth) {
             // Make leaf
             splitAttribute = -1
             classDistribution = classProbs.clone()
             normalisedClassDistribution = classProbs.clone()
-            Utility.normalize(normalisedClassDistribution!!)
+            UtilityJava.normalize(normalisedClassDistribution!!)
 
             return
         }
@@ -154,7 +155,7 @@ class RandomTree(val randomForest: RandomForest) : Serializable {
 
             val currVal = gain(dists[0], priorVal(dists[0]))
 
-            if (Utility.gr(currVal, 0.0)) {
+            if (UtilityJava.gr(currVal, 0.0)) {
                 gainFound = true
             }
 
@@ -170,7 +171,7 @@ class RandomTree(val randomForest: RandomForest) : Serializable {
         splitAttribute = bestIndex
 
         // Any useful split found?
-        if (Utility.gr(`val`, 0.0)) {
+        if (UtilityJava.gr(`val`, 0.0)) {
 
             // Build subtrees
             splitPoint = split
@@ -205,7 +206,7 @@ class RandomTree(val randomForest: RandomForest) : Serializable {
 
         if (classDistribution != null) {
             normalisedClassDistribution = classProbs.clone()
-            Utility.normalize(normalisedClassDistribution!!)
+            UtilityJava.normalize(normalisedClassDistribution!!)
         }
     }
 
@@ -321,7 +322,7 @@ class RandomTree(val randomForest: RandomForest) : Serializable {
      */
     protected fun priorVal(dist: Array<DoubleArray>): Double {
 
-        return Utility.entropyOverColumns(dist)
+        return UtilityJava.entropyOverColumns(dist)
     }
 
     /**
@@ -333,7 +334,7 @@ class RandomTree(val randomForest: RandomForest) : Serializable {
      */
     protected fun gain(dist: Array<DoubleArray>, priorVal: Double): Double {
 
-        return priorVal - Utility.entropyConditionedOnRows(dist)
+        return priorVal - UtilityJava.entropyConditionedOnRows(dist)
     }
 
     companion object {

@@ -37,7 +37,8 @@ import org.scijava.plugin.Parameter;
 import org.scijava.plugin.Plugin;
 import org.scijava.prefs.PrefService;
 import org.scijava.widget.FileWidget;
-import imagesurf.util.Utility;
+import imagesurf.util.UtilityKt;
+import util.UtilityJava;
 
 import java.io.File;
 import java.io.IOException;
@@ -106,7 +107,7 @@ public class BatchApplyImageSurf implements Command{
 		final ImageSurfClassifier imageSurfClassifier;
 		try
 		{
-			imageSurfClassifier = (ImageSurfClassifier) Utility.INSTANCE.deserializeObject(classifierFile, true);
+			imageSurfClassifier = (ImageSurfClassifier) UtilityJava.deserializeObject(classifierFile, true);
 
 			final RandomForest rf = imageSurfClassifier.getRandomForest();
 			rf.setNumThreads(Prefs.getThreads());

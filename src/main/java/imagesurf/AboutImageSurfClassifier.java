@@ -1,7 +1,7 @@
 package imagesurf;
 
 import imagesurf.classifier.ImageSurfClassifier;
-import imagesurf.util.Utility;
+import imagesurf.util.UtilityKt;
 import net.imagej.ImageJ;
 import org.scijava.ItemIO;
 import org.scijava.ItemVisibility;
@@ -9,9 +9,9 @@ import org.scijava.command.Command;
 import org.scijava.log.LogService;
 import org.scijava.plugin.Parameter;
 import org.scijava.plugin.Plugin;
+import util.UtilityJava;
 
 import java.io.File;
-import java.io.IOException;
 
 @Plugin(type = Command.class, menuPath = "Plugins>Segmentation>ImageSURF>Advanced>Get Classifier Details",
 		headless = true)
@@ -34,8 +34,8 @@ public class AboutImageSurfClassifier implements Command {
 	public void run() {
 		try
 		{
-			ImageSurfClassifier classifier = (ImageSurfClassifier) Utility.INSTANCE.deserializeObject(classifierFile, true);
-			ImageSurf = Utility.INSTANCE.describeClassifier(classifier);
+			ImageSurfClassifier classifier = (ImageSurfClassifier) UtilityJava.deserializeObject(classifierFile, true);
+			ImageSurf = UtilityKt.INSTANCE.describeClassifier(classifier);
 		}
 		catch (Exception e)
 		{

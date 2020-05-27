@@ -22,7 +22,7 @@ import ij.ImageStack;
 import imagesurf.feature.SurfImage;
 import imagesurf.feature.PixelType;
 import imagesurf.feature.calculator.FeatureCalculator;
-import imagesurf.util.Utility;
+import imagesurf.util.UtilityKt;
 import net.imagej.Dataset;
 import net.imagej.ImageJ;
 import org.scijava.ItemIO;
@@ -80,9 +80,9 @@ public class PreviewImageFeatures implements Command{
 			for(FeatureCalculator f : featureCalculators)
 				System.out.println(f.getDescriptionWithTags());
 
-			PixelType pixelType = Utility.INSTANCE.getPixelType(image);
+			PixelType pixelType = UtilityKt.INSTANCE.getPixelType(image);
 
-			final ImageStack imageStack = Utility.INSTANCE.calculateImageFeatures(featureCalculators,
+			final ImageStack imageStack = UtilityKt.INSTANCE.calculateImageFeatures(featureCalculators,
 					features,
 			statusService, pixelType);
 			image.setStack(imageStack);

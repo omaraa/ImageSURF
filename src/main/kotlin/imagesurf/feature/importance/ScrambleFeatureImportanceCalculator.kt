@@ -2,7 +2,8 @@ package imagesurf.feature.importance
 
 import imagesurf.classifier.Classifier
 import imagesurf.feature.FeatureReader
-import imagesurf.util.Utility
+import imagesurf.util.UtilityKt
+import util.UtilityJava
 import java.util.*
 import java.util.stream.IntStream
 
@@ -30,7 +31,7 @@ class ScrambleFeatureImportanceCalculator(
             val randomSeed: Long) : FeatureReader {
 
         val scrambledIndices: IntArray = IntStream.range(0, reader.numInstances).toArray()
-                .also { Utility.shuffleArray(it, Random(randomSeed)) }
+                .also { UtilityJava.shuffleArray(it, Random(randomSeed)) }
 
         override fun getClassValue(instanceIndex: Int): Int {
             return reader.getClassValue(instanceIndex)

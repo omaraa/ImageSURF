@@ -4,7 +4,7 @@ import ij.ImageStack
 import ij.Prefs
 import imagesurf.classifier.ImageSurfClassifier
 import imagesurf.feature.SurfImage
-import imagesurf.util.Utility
+import imagesurf.util.UtilityKt
 import org.scijava.app.StatusService
 import java.util.concurrent.ExecutionException
 
@@ -22,12 +22,12 @@ interface ImageSegmenter {
                 throw RuntimeException("Classifier trained for " + imageSurfClassifier.numChannels + " channels. Image has " + image.numChannels + " - cannot segment.")
 
             val randomForest = imageSurfClassifier.randomForest.apply { numThreads = Prefs.getThreads() }
-            val classColors = Utility.getClassColors(randomForest.numClasses)
+            val classColors = UtilityKt.getClassColors(randomForest.numClasses)
 
-            val featuresProgress = Utility.MessageProgress(statusService)
+            val featuresProgress = UtilityKt.MessageProgress(statusService)
             image.addProgressListener(featuresProgress)
 
-            val segmentProgress = Utility.MessageProgress(statusService)
+            val segmentProgress = UtilityKt.MessageProgress(statusService)
             randomForest.addProgressListener(segmentProgress)
 
             return image.getSliceCalculations(imageSurfClassifier.features)

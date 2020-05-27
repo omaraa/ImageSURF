@@ -19,6 +19,7 @@ package imagesurf.classifier
 
 import imagesurf.feature.FeatureReader
 import imagesurf.util.*
+import util.UtilityJava
 
 import java.io.Serializable
 import java.util.*
@@ -26,7 +27,6 @@ import java.util.concurrent.*
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.stream.IntStream
 import kotlin.math.floor
-import kotlin.math.max
 import kotlin.math.min
 
 class RandomForest private constructor(
@@ -119,7 +119,7 @@ class RandomForest private constructor(
                     minInstances = minNum,
                     numAttributes = when {
                         numAttributes >= data!!.numFeatures -> data!!.numFeatures
-                        numAttributes < 1 -> Utility.log2((data!!.numFeatures - 1).toDouble()).toInt() + 1
+                        numAttributes < 1 -> UtilityJava.log2((data!!.numFeatures - 1).toDouble()).toInt() + 1
                         else -> numAttributes
                     },
                     randomSeed = randomSeed,
@@ -204,10 +204,10 @@ class RandomForest private constructor(
                 for (j in newProbs.indices)
                     sums[j] += newProbs[j]
         }
-        return if (Utility.eq(Utility.sum(sums), 0.0)) {
+        return if (UtilityJava.eq(UtilityJava.sum(sums), 0.0)) {
             sums
         } else {
-            Utility.normalize(sums)
+            UtilityJava.normalize(sums)
             sums
         }
     }
@@ -243,10 +243,10 @@ class RandomForest private constructor(
                             for (j in newProbs.indices)
                                 sums[j] += newProbs[j]
                     }
-                    if (Utility.eq(Utility.sum(sums), 0.0)) {
+                    if (UtilityJava.eq(UtilityJava.sum(sums), 0.0)) {
                         result = sums
                     } else {
-                        Utility.normalize(sums)
+                        UtilityJava.normalize(sums)
                         result = sums
                     }
                     distributions[index] = result
