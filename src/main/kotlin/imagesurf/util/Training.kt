@@ -183,32 +183,31 @@ object Training {
 
                     progressListener.showStatus("Extracting examples from image " + (imageIndex + 1) + "/" + numImages)
 
+                    val labelPixelIndices = examplePixelIndices[imageIndex]
                     val labelImagePixels = getLabelImagePixels(labelFiles[imageIndex])
-
-                    val selectedPixels = examplePixelIndices[imageIndex]
+                    val labelPixels =  UtilityJava.selectInts(labelPixelIndices, labelImagePixels)
 
                     //Add label colours to classColors list if not yet there
-                    classColors.addAll(selectedPixels
-                            .map { pixelIndex -> labelImagePixels[pixelIndex] }
+                    classColors.addAll(labelPixels
                             .groupBy { pixelValue -> pixelValue }
                             .keys.filter { !classColors.contains(it) })
 
-                    // TODO: Assumes each feature calculate only produces one feature image, but future ones may produce more.
                     (selectedFeatures.map { featureCalculator ->
+                        // TODO: Assumes each feature calculate only produces one feature image, but future ones may produce more.
                         val featurePixels = (surfImage.getFeaturePixels(0, 0, featureCalculator) as Array<Any>)[0]
 
                         when (pixelType) {
-                            PixelType.GRAY_8_BIT -> ByteFeatureImage(selectedPixels.map { (featurePixels as ByteArray)[it] }.toByteArray())
-                            PixelType.GRAY_16_BIT -> ShortFeatureImage(selectedPixels.map { (featurePixels as ShortArray)[it] }.toShortArray())
+                            PixelType.GRAY_8_BIT -> ByteFeatureImage(UtilityJava.selectBytes(labelPixelIndices, featurePixels as ByteArray))
+                            PixelType.GRAY_16_BIT -> ShortFeatureImage(UtilityJava.selectShorts(labelPixelIndices, featurePixels as ShortArray))
                         }
                     } + when (pixelType) {
                         PixelType.GRAY_8_BIT -> {
                             val classMap = classColors.mapIndexed { index, rgb -> rgb to index.toByte() }.toMap()
-                            ByteFeatureImage(selectedPixels.map { classMap[labelImagePixels[it]]!! }.toByteArray())
+                            ByteFeatureImage(UtilityJava.mapSelectedBytes(labelPixelIndices, labelImagePixels, classMap))
                         }
                         PixelType.GRAY_16_BIT -> {
                             val classMap = classColors.mapIndexed { index, rgb -> rgb to index.toShort() }.toMap()
-                            ShortFeatureImage(selectedPixels.map { classMap[labelImagePixels[it]]!! }.toShortArray())
+                            ShortFeatureImage(UtilityJava.mapSelectedShorts(labelPixelIndices, labelImagePixels, classMap))
                         }
                     }) as List<FeatureImage<Any>>
                 }
@@ -327,14 +326,7 @@ object Training {
                         " differ in size")
             }
 
-            val indices = IntArray(unlabelledImagePixels.size)
-            var numLabels = 0
-            for (i in 0 until unlabelledImagePixels.size) {
-                if (labelImagePixels[i] != unlabelledImagePixels[i])
-                    indices[numLabels++] = i
-            }
-
-            indices.copyOf(numLabels)
+            UtilityJava.differentIndices(labelImagePixels, unlabelledImagePixels)
         }
     }
 
@@ -428,7 +420,7 @@ private fun List<List<Training.FeatureImage<Any>>>.collapseFeatures(pixelType: P
     }
 }
 
-private fun List<List<Training.FeatureImage<Any>>>.mapClassValues(pixelType: PixelType, classColors: List<Int>) = map { imageFeatures ->
+private fun List<List<Training.FeatureImage<Any>>>.mapClassValues(pixelType: PixelType, classColors: List<Int>): List<List<Training.FeatureImage<Any>>> = map { imageFeatures ->
     imageFeatures.mapIndexed { index, feature ->
         if (index == imageFeatures.size - 1) {
             val unordered = classColors.mapIndexed { classIndex, classRgb -> classRgb to classIndex }.toMap()
@@ -437,8 +429,8 @@ private fun List<List<Training.FeatureImage<Any>>>.mapClassValues(pixelType: Pix
             }.toMap()
 
             when (pixelType) {
-                PixelType.GRAY_8_BIT -> feature.map { classMap[(it as Byte).toInt()]!!.toByte() }
-                PixelType.GRAY_16_BIT -> feature.map { classMap[(it as Short).toInt()]!!.toShort() }
+                PixelType.GRAY_8_BIT -> Training.ByteFeatureImage(UtilityJava.mapBytes(feature.pixels as ByteArray, classMap)) as Training.FeatureImage<Any>
+                PixelType.GRAY_16_BIT -> Training.ShortFeatureImage(UtilityJava.mapShorts(feature.pixels as ShortArray, classMap)) as Training.FeatureImage<Any>
             }
         } else {
             feature

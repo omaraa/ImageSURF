@@ -19,12 +19,15 @@ package util;
 
 import ij.ImagePlus;
 import imagesurf.feature.PixelType;
+import org.jetbrains.annotations.NotNull;
 
 import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
 import javax.imageio.stream.ImageInputStream;
 import java.awt.*;
 import java.io.*;
+import java.util.Arrays;
+import java.util.Map;
 import java.util.Random;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
@@ -383,5 +386,86 @@ public class UtilityJava
 
     public static int calculateNumMergedChannels(int numChannels) {
         return (1 << numChannels) - 1;
+    }
+
+    public static int[] differentIndices(@NotNull int[] labelImagePixels, @NotNull int[] unlabelledImagePixels) {
+        int[] indices = new int[unlabelledImagePixels.length];
+
+        int numLabels = 0;
+        for(int i = 0; i < unlabelledImagePixels.length; i++)
+            if(labelImagePixels[i] != unlabelledImagePixels[i])
+                indices[numLabels++] = i;
+
+        return Arrays.copyOf(indices, numLabels);
+    }
+
+    @NotNull
+    public static byte[] selectBytes(@NotNull int[] indices, @NotNull byte[] bytes) {
+        byte[] result = new byte[indices.length];
+
+        for(int i = 0; i < indices.length; i++)
+            result[i] = bytes[indices[i]];
+
+        return result;
+    }
+
+    @NotNull
+    public static short[] selectShorts(@NotNull int[] indices, @NotNull short[] shorts) {
+        short[] result = new short[indices.length];
+
+        for(int i = 0; i < indices.length; i++)
+            result[i] = shorts[indices[i]];
+
+        return result;
+    }
+
+    @NotNull
+    public static int[] selectInts(@NotNull int[] indices, @NotNull int[] ints) {
+        int[] result = new int[indices.length];
+
+        for(int i = 0; i < indices.length; i++)
+            result[i] = ints[indices[i]];
+
+        return result;
+    }
+
+    @NotNull
+    public static byte[] mapSelectedBytes(@NotNull int[] selected, @NotNull int[] values, @NotNull Map<Integer, Byte> classMap) {
+        byte[] result = new byte[selected.length];
+
+        for(int i = 0; i < selected.length; i++)
+            result[i] = classMap.get(values[selected[i]]);
+
+        return result;
+    }
+
+    @NotNull
+    public static short[] mapSelectedShorts(@NotNull int[] selected, @NotNull int[] values, @NotNull Map<Integer, Short> classMap) {
+        short[] result = new short[selected.length];
+
+        for(int i = 0; i < selected.length; i++)
+            result[i] = classMap.get(values[selected[i]]);
+
+        return result;
+    }
+
+    @NotNull
+    public static byte[] mapBytes(byte[] bytes, @NotNull Map<Integer, Integer> classMap) {
+        byte[] results = new byte[bytes.length];
+
+        for(int i = 0; i < bytes.length; i++)
+            results[i] = classMap.get(bytes[i] & 0xff).byteValue();
+
+        return results;
+    }
+
+    @NotNull
+    public static short[] mapShorts(short[] shorts, @NotNull Map<Integer, Integer> classMap) {
+        short[] results = new short[shorts.length];
+
+        for(int i = 0; i < shorts.length; i++)
+            results[i] = classMap.get(shorts[i] & 0xffff).byteValue();
+
+        return results;
     }
 }
