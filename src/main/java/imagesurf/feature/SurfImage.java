@@ -716,7 +716,7 @@ public class SurfImage implements Serializable, ProgressNotifier
 	{
 		Collection<FeatureCalculator> toRemove = getFeatures();
 		Collection<FeatureCalculator> toSave = toRemove.stream()
-				.filter(f -> f.getDependencies().length == 0)
+				.filter(f -> f.getDependencies().length == 0 || f.preferCaching())
 				.collect(Collectors.toCollection(HashSet::new));
 
 		toRemove.removeAll(toSave);

@@ -197,4 +197,8 @@ public interface FeatureCalculator extends Serializable
 		}
 		return description.toString();
 	}
+
+	default boolean preferCaching() {
+		return false;
+	}
 }

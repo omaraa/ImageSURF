@@ -385,4 +385,9 @@ abstract public class NeighbourhoodHistogramCalculator implements FeatureCalcula
 	public int hashCode() {
 		return Objects.hash(getClass(),getRadius(), getTags());
 	}
+
+	@Override
+	public boolean preferCaching() {
+		return true;
+	}
 }
