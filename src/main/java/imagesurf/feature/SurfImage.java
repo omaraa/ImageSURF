@@ -64,6 +64,8 @@ public class SurfImage implements Serializable, ProgressNotifier
 	public static final String FEATURE_TAG_CHANNEL_INDEX = "Channel";
 
 	private final Object pixels;
+
+	//Features are stored per slice, with all merged channels included in each array element
 	private final Map<FeatureCalculator, Object>[] features;
 	public final int numMergedChannels;
 	private boolean verbose = true;
@@ -130,19 +132,61 @@ public class SurfImage implements Serializable, ProgressNotifier
 
 		this.features = new Map[totalMergedSlices];
 
-		for(int featureIndex = 0; featureIndex < this.features.length; featureIndex++)
+		for(int mergedChannelIndex = 0; mergedChannelIndex < this.features.length; mergedChannelIndex++)
 		{
-			features[featureIndex] = new ConcurrentHashMap<>();
-			features[featureIndex].putAll(i.features[featureIndex]);
+			features[mergedChannelIndex] = new ConcurrentHashMap<>();
+			features[mergedChannelIndex].putAll(i.features[mergedChannelIndex]);
 		}
 	}
 
-	private SurfImage(final Object pixels, final PixelType pixelType, final int width, final int height, final int numChannels, final int numSlices, final int numFrames, String title)
+	private SurfImage(final Object pixels, final PixelType pixelType, final int width, final int height, final int numChannels, final int numSlices, final int numFrames, String title) {
+		this(
+				mergePixels(pixels, pixelType, width, height, numChannels, numSlices, numFrames),
+				pixelType,
+				width,
+				height,
+				numChannels,
+				numSlices,
+				numFrames,
+				title,
+				UtilityKt.INSTANCE.calculateNumMergedChannels(numChannels));
+	}
+
+	private static Object mergePixels(final Object pixels, final PixelType pixelType, final int width, final int height, final int numChannels, final int numSlices, final int numFrames) {
+		if(numChannels == 1)
+		{
+			return pixels;
+		}
+		else
+		{
+			final int pixelsPerChannel = width * height;
+			final int pixelsPerChannelSlice = pixelsPerChannel * numChannels;
+			final int pixelsPerChannelFrame = pixelsPerChannelSlice * numSlices;
+
+			switch (pixelType)
+			{
+
+				case GRAY_8_BIT:
+					return mergeBytePixels(pixels, numChannels, numSlices, numFrames, pixelsPerChannelSlice, pixelsPerChannelFrame, pixelsPerChannel);
+
+				case GRAY_16_BIT:
+					return mergeShortPixels(pixels, numChannels, numSlices, numFrames, pixelsPerChannelSlice, pixelsPerChannelFrame, pixelsPerChannel);
+
+				default:
+					throw new RuntimeException("Unsupported pixel type: "+pixelType);
+			}
+		}
+	}
+
+	private SurfImage(final Object pixels, final PixelType pixelType, final int width, final int height, final int numChannels, final int numSlices, final int numFrames, String title, final int numMergedChannels)
 	{
+		this.title = title;
+		this.pixels = pixels;
+		this.pixelType = pixelType;
 		this.width = width;
 		this.height = height;
 		this.numChannels = numChannels;
-		this.numMergedChannels = UtilityKt.INSTANCE.calculateNumMergedChannels(numChannels);
+		this.numMergedChannels = numMergedChannels;
 		this.numSlices = numSlices;
 		this.numFrames = numFrames;
 		this.pixelsPerChannel = width * height;
@@ -168,36 +212,11 @@ public class SurfImage implements Serializable, ProgressNotifier
 					throw new RuntimeException("Unsupported pixel type: "+pixelType);
 			}
 
-			if(numPixels != pixelsPerChannelFrame * numFrames)
+			if(numPixels != pixelsPerChannel * totalMergedSlices)
 				throw new IllegalArgumentException("Number of pixels must be exactly (frames * slices * channels * width * height pixels) long. Actual=" + numPixels + " Required=" + (pixelsPerChannelFrame * numFrames));
 		}
 
-		this.pixelType = pixelType;
-		this.title = title;
-
-		if(numChannels == 1)
-		{
-			this.pixels = pixels;
-		}
-		else
-		{
-			switch (pixelType)
-			{
-
-				case GRAY_8_BIT:
-					this.pixels = mergeBytePixels(pixels, numChannels, numSlices, numFrames);
-
-					break;
-				case GRAY_16_BIT:
-					this.pixels = mergeShortPixels(pixels, numChannels, numSlices, numFrames);
-					break;
-
-				default:
-					throw new RuntimeException("Unsupported pixel type: "+pixelType);
-			}
-		}
-
-		features = new Map[totalMergedSlices];
+		this.features = new Map[totalMergedSlices];
 		int i = 0;
 		for(int mergedChannelIndex = 0; mergedChannelIndex < numMergedChannels; mergedChannelIndex++)
 			for(int z = 0; z < numSlices; z++)
@@ -227,8 +246,10 @@ public class SurfImage implements Serializable, ProgressNotifier
 				}
 	}
 
-	private byte[] mergeBytePixels(Object pixels, int numChannels, int numSlices, int numFrames)
+	private static byte[] mergeBytePixels(Object pixels, int numChannels, int numSlices, int numFrames, int pixelsPerChannelSlice, int pixelsPerChannelFrame, int pixelsPerChannel)
 	{
+		final int numMergedChannels = UtilityKt.INSTANCE.calculateNumMergedChannels(numChannels);
+
 		byte[] mergedPixels = new byte[pixelsPerChannel * numMergedChannels];
 
 		for(int channelMask = 1; channelMask <= numMergedChannels; channelMask++)
@@ -292,8 +313,10 @@ public class SurfImage implements Serializable, ProgressNotifier
 		return mergedPixels;
 	}
 
-	private short[] mergeShortPixels(Object pixels, int numChannels, int numSlices, int numFrames)
+	private static short[] mergeShortPixels(Object pixels, int numChannels, int numSlices, int numFrames, int pixelsPerChannelSlice, int pixelsPerChannelFrame, int pixelsPerChannel)
 	{
+		final int numMergedChannels = UtilityKt.INSTANCE.calculateNumMergedChannels(numChannels);
+
 		short[] mergedPixels = new short[pixelsPerChannel * numMergedChannels];
 
 		for(int channelMask = 1; channelMask <= numMergedChannels; channelMask++)
@@ -799,24 +822,98 @@ public class SurfImage implements Serializable, ProgressNotifier
 		return calculations;
 	}
 
-	public SurfImage getSubImage(int x, int y, int width, int height) {
+	public SurfImage getSubImagePixels(int x, int y, int width, int height) {
+		if(x + width > this.width || y + height > this.height || x < 0 || y < 0)
+			throw new RuntimeException("Requested subimage out of bounds");
 
+		final Object subImagePixels = getSubImagePixels(pixels, x, y, width, height);
+
+		String subImageTitle = title + " ("+x+", "+y+", "+width+", "+height+")";
+
+		SurfImage subImage = new SurfImage(subImagePixels, pixelType, width, height, numChannels, numSlices, numFrames, subImageTitle, numMergedChannels);
+
+		for(int mergedSliceIndex = 0; mergedSliceIndex < totalMergedSlices; mergedSliceIndex++) {
+			final Map<FeatureCalculator, Object> s = subImage.features[mergedSliceIndex] = new ConcurrentHashMap<>();
+
+			for(Map<FeatureCalculator, Object> f : features)
+				for(FeatureCalculator k : f.keySet()) {
+					s.put(k, getFeatureSubImages(f.get(k), x, y, width, height));
+				}
+
+		}
+		return subImage;
+	}
+
+	private Object getFeatureSubImages(Object featureImages, int x, int y, int width, int height) {
+		switch (pixelType) {
+			case GRAY_8_BIT: {
+				byte[][] byteFeatureImages = (byte[][]) featureImages;
+				byte[][] featureSubImages = new byte[byteFeatureImages.length][];
+
+				for (int i = 0; i < byteFeatureImages.length; i++)
+					featureSubImages[i] = (byte[]) getSubImageFeaturePixels(byteFeatureImages[i], x, y, width, height);
+
+				return featureSubImages;
+			}
+			case GRAY_16_BIT: {
+				short[][] shortFeatureImages = (short[][]) featureImages;
+				short[][] featureSubImages = new short[shortFeatureImages.length][];
+
+				for (int i = 0; i < shortFeatureImages.length; i++)
+					featureSubImages[i] = (short[]) getSubImageFeaturePixels(shortFeatureImages[i], x, y, width, height);
+
+				return featureSubImages;
+			}
+		}
+
+		throw new RuntimeException("Unsupported pixel type: "+pixelType);
+
+	}
+
+	@NotNull
+	private Object getSubImageFeaturePixels(Object pixels, int x, int y, int width, int height) {
+		final int subimageNumPixels = width * height;
+
+		final Object subImagePixels;
+		switch (pixelType)
+		{
+			case GRAY_8_BIT:
+				subImagePixels = new byte[subimageNumPixels];
+				break;
+			case GRAY_16_BIT:
+				subImagePixels = new short[subimageNumPixels];
+				break;
+			default:
+				throw new RuntimeException("Pixel type "+pixelType+" not supported.");
+		}
+
+		for(int rowIndex = 0; rowIndex < height; rowIndex++) {
+			int destStart = rowIndex * width;
+			int srcStart =  (this.width * (rowIndex + y)) + x;
+
+			System.arraycopy(pixels, srcStart, subImagePixels, destStart, width);
+		}
+		return subImagePixels;
+	}
+
+	@NotNull
+	private Object getSubImagePixels(Object pixels, int x, int y, int width, int height) {
 		final int pixelsPerChannel = width * height;
 
 		final Object subImagePixels;
 		switch (pixelType)
 		{
 			case GRAY_8_BIT:
-				subImagePixels = new byte[pixelsPerChannel* totalSlices];
+				subImagePixels = new byte[pixelsPerChannel* totalMergedSlices];
 				break;
 			case GRAY_16_BIT:
-				subImagePixels = new short[pixelsPerChannel* totalSlices];
+				subImagePixels = new short[pixelsPerChannel* totalMergedSlices];
 				break;
 			default:
 				throw new RuntimeException("Pixel type "+pixelType+" not supported.");
 		}
 
-		for(int slice = 0; slice < totalSlices; slice++) {
+		for(int slice = 0; slice < totalMergedSlices; slice++) {
 			for(int rowIndex = 0; rowIndex < height; rowIndex++) {
 				int destStart = slice * pixelsPerChannel + rowIndex * width;
 				int srcStart = slice * this.pixelsPerChannel + (this.width * (rowIndex + y)) + x;
@@ -824,9 +921,6 @@ public class SurfImage implements Serializable, ProgressNotifier
 				System.arraycopy(pixels, srcStart, subImagePixels, destStart, width);
 			}
 		}
-
-		String subImageTitle = title + " ("+x+", "+y+", "+width+", "+height+")";
-
-		return new SurfImage(subImagePixels, pixelType, width, height, numChannels, numSlices, numFrames, subImageTitle);
+		return subImagePixels;
 	}
 }

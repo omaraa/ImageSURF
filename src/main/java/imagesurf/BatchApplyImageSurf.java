@@ -165,7 +165,7 @@ public class BatchApplyImageSurf implements Command{
 				if (imageSurfClassifier.getNumChannels() != features.numChannels)
 					throw new Exception("Classifier trained for "+imageSurfClassifier.getNumChannels()+" channels. Image has "+features.numChannels+" - cannot segment.");
 
-				final ImageStack outputStack = ApplyImageSurf.run(imageSurfClassifier, image, statusService, tileSize);
+				final ImageStack outputStack = ApplyImageSurf.run(imageSurfClassifier, features, statusService, tileSize);
 				final ImagePlus outputImage = new ImagePlus(image.getTitle(), outputStack);
 
 				File imageOutputFile = new File(imagesOutputPath, imageFile.getName());

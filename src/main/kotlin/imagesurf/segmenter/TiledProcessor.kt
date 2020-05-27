@@ -42,7 +42,7 @@ class TiledProcessor(
 
         tiles.mapIndexed { index, tile ->
 
-            surfImage.getSubImage(
+            surfImage.getSubImagePixels(
                     tile.bufferedXStart,
                     tile.bufferedYStart,
                     tile.bufferedWidth,

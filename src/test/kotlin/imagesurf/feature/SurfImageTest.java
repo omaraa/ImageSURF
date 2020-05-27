@@ -19,7 +19,7 @@ public class SurfImageTest {
 
         SurfImage image = new SurfImage(new ImagePlus("", new ShortProcessor(10, 10, pixels, null)));
 
-        short[][] subImagePixels = (short[][]) image.getSubImage(0, 0, 10, 10).getFeaturePixels(0, 0, Identity.get());
+        short[][] subImagePixels = (short[][]) image.getSubImagePixels(0, 0, 10, 10).getFeaturePixels(0, 0, Identity.get());
 
 
         Assert.assertArrayEquals(pixels, subImagePixels[0]);
@@ -34,7 +34,7 @@ public class SurfImageTest {
 
         SurfImage image = new SurfImage(new ImagePlus("", new ShortProcessor(10, 10, pixels, null)));
 
-        short[][] subImagePixels = (short[][]) image.getSubImage(0, 5, 10, 5).getFeaturePixels(0, 0, Identity.get());
+        short[][] subImagePixels = (short[][]) image.getSubImagePixels(0, 5, 10, 5).getFeaturePixels(0, 0, Identity.get());
 
 
         short[] expected = new short[50];
@@ -53,7 +53,7 @@ public class SurfImageTest {
 
         SurfImage image = new SurfImage(new ImagePlus("", new ShortProcessor(10, 10, pixels, null)));
 
-        short[][] subImagePixels = (short[][]) image.getSubImage(5, 5, 5, 5).getFeaturePixels(0, 0, Identity.get());
+        short[][] subImagePixels = (short[][]) image.getSubImagePixels(5, 5, 5, 5).getFeaturePixels(0, 0, Identity.get());
 
 
 
